@@ -1,5 +1,6 @@
 const { app, BrowserWindow, dialog, ipcMain, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
+const AutoLaunch = require('electron-auto-launch');
 
 // Senha de administrador (troque para valor seguro via variável de ambiente)
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
@@ -7,6 +8,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 let mainWindow;
 let sessionWindow;
 let tray;
+let autoLauncher;
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -112,25 +114,9 @@ function createTray() {
   tray.setToolTip('Sessão OAB - Clique para reabrir');
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: 'Reabrir sessão',
-      click: () => {
-        if (sessionWindow) {
-          sessionWindow.show();
-          sessionWindow.focus();
-        }
-      },
-    },
-    { type: 'separator' },
-    {
       label: 'Encerrar sessão',
       click: () => {
         ipcMain.emit('end-session');
-      },
-    },
-    {
-      label: 'Sair do aplicativo',
-      click: () => {
-        app.exit(0);
       },
     },
   ]);
@@ -170,7 +156,25 @@ function requestWindowsAdminConsent() {
   });
 }
 
-app.whenReady().then(createMainWindow);
+app.whenReady().then(async () => {
+  if (app.isPackaged) {
+    autoLauncher = new AutoLaunch({
+      name: 'OAB Login',
+      path: process.execPath,
+    });
+    try {
+      const isEnabled = await autoLauncher.isEnabled();
+      if (!isEnabled) {
+        await autoLauncher.enable();
+      }
+    } catch (err) {
+      console.error('Falha ao configurar auto-start:', err);
+    }
+  } else {
+    console.info('Auto-start ignorado em modo desenvolvimento.');
+  }
+  createMainWindow();
+});
 
 app.on('window-all-closed', () => {
   // Em Windows, manter app ativo até confirmação (não sair automaticamente)

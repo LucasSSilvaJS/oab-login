@@ -29,6 +29,7 @@
     "@capacitor/keyboard": "7.0.3",
     "@capacitor/status-bar": "7.0.3",
     "@ionic/angular": "^8.0.0",
+    "electron-auto-launch": "^5.0.7",
     "ionicons": "^7.0.0",
     "rxjs": "~7.8.0",
     "sudo-prompt": "^9.2.1",

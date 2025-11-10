@@ -1,142 +1,128 @@
-# OAB Login - Ionic Angular
+# OAB Login - Ionic + Electron
 
-Aplicação Ionic Angular com tela de login modularizada, utilizando formulário reativo, guarda de rota e serviço de autenticação (mock).
+Aplicação Ionic Angular integrada ao Electron que simula um ambiente de login da OAB com controle de tempo e monitoramento da sessão.
+
+## Credenciais mock
+
+- Nº da OAB: `123`
+- Código de segurança: `123`
+- Nome exibido: `Gustavo`
+
+O `AuthService` valida apenas esses dados e inicia a sessão com duração de 30 minutos.
+
+## Destaques
+
+- Tela de login responsiva com formulário reativo e feedbacks instantâneos.
+- Overlay flutuante arrastável com número da OAB, nome e contador regressivo.
+- Janela dedicada (frameless) para a sessão: mostra somente cartão com bem-vindo, número OAB, tempo e botões.
+- Contador encerra sessão automaticamente e retorna ao login ao zerar.
+- Botão “✕” envia a janela para a bandeja; ícone da bandeja permite reabrir ou encerrar.
+- Autostart configurado via `electron-auto-launch`: após instalar, o app inicia junto com o Windows.
+- Proteção de saída com senha (usando `sudo-prompt`) antes de fechar o aplicativo em modo quiosque.
 
 ## Pré-requisitos
 
-- Node.js LTS instalado
-- npm (vem com o Node.js)
-- Ionic CLI (opcional, mas recomendado)
+- Node.js (versão LTS)
+- npm
+- Ionic CLI (opcional para comandos utilitários)
 
 ```bash
 npm i -g @ionic/cli
 ```
 
-## Como executar
-
-1) Instale as dependências:
+## Instalação e execução (web)
 
 ```bash
 cd oab-login
 npm install
-```
-
-2) Rode o app no navegador (dev server com live reload):
-
-```bash
 ionic serve
 ```
 
-3) Acesse `http://localhost:8100` no seu navegador.
+Acesse `http://localhost:8100`. Use `ionic serve --no-open` caso não queira abrir o navegador automaticamente.
 
-> Dica: use `ionic serve --no-open` para não abrir o navegador automaticamente.
-
-## Executar em modo Desktop (Windows)
-
-O projeto inclui Electron para abrir em tela cheia e exigir senha de administrador ao fechar.
+## Modo Desktop (Electron / Windows)
 
 ```bash
-# senha padrão pode ser alterada (recomendado)
+# definir senha que será solicitada ao sair (opcional, mas recomendado)
 setx ADMIN_PASSWORD "sua-senha-forte"
 
 npm run desktop
 ```
 
-- Abre a janela em tela cheia e sem menu.
-- Ao tentar fechar, aparecerá um modal solicitando a senha de administrador.
-- Para gerar instalador do Windows (após `npm run build`):
+- Abre o Electron em modo quiosque com tela de login.
+- Após entrar (OAB 123 / código 123) a janela principal é fechada e uma janela de sessão (sem moldura) é aberta.
+- O botão “Encerrar sessão” faz logout imediato. O botão “✕” move a janela para a bandeja sem encerrar o timer.
+- Na bandeja, o menu permite reabrir a janela, encerrar a sessão ou encerrar o aplicativo.
+- O auto-start é habilitado na primeira execução (`electron-auto-launch`). Ajuste em `electron/main.js` caso deseje desligar.
+- Para gerar instalador Windows:
 
 ```bash
 npm run build
 npm run desktop:win
 ```
 
-> O instalador será gerado na pasta `dist`.
+O instalador segue as definições de `electron-builder` em `package.json`.
 
-## Estrutura principal
+## Estrutura do projeto
 
 ```
 src/
   app/
-    core/                # Serviços centrais (singleton) e providers globais
-    shared/              # Módulo compartilhado (Forms, IonicModule, etc.)
+    core/                 # Módulos e serviços globais
+    shared/               # Módulo compartilhado + componentes (overlay, serviços)
     features/
-      auth/              # Módulo de autenticação (lazy)
-        pages/login/     # Tela de Login (HTML/SCSS/TS)
-        services/        # AuthService (mock)
-        guards/          # AuthGuard (protege rotas)
-    home/                # Módulo/página Home (protegido pelo AuthGuard)
+      auth/
+        pages/login/      # Tela de login e feedbacks
+        services/         # AuthService mock + SessionTimerService
+        guards/           # AuthGuard (protege /home)
+    home/                 # Página de sessão (cartão com timer e botões)
   assets/
-    oab-logo.png         # Logo exibido na área direita do cartão
+    oab-logo.png
+electron/
+  main.js                 # Lógica do processo principal (janelas, tray, auto-start)
+  preload.js              # Ponte IPC (start/end/hide sessão)
 ```
 
 Arquivos-chave:
-- `src/app/app-routing.module.ts`: rotas raiz (lazy para `auth`)
-- `src/app/features/auth/pages/login/login.page.ts`: formulário reativo e submit
-- `src/app/features/auth/services/auth.service.ts`: login mock e estado de sessão
-- `src/app/features/auth/guards/auth.guard.ts`: redireciona não autenticados para `/auth/login`
+- `src/app/app-routing.module.ts`: rotas raiz (`/auth` e `/home` protegida).
+- `src/app/features/auth/services/auth.service.ts`: login mock, inicialização do timer.
+- `src/app/shared/services/session-timer.service.ts`: controle do countdown.
+- `src/app/home/home.page.*`: cartão minimalista com timer e ação de bandeja.
+- `electron/main.js`: janelas Electron, tray, auto-launch e IPC.
 
-## Variáveis/Ajustes usuais
+## Variáveis/Ajustes recomendados
 
-- Substitua a logo em `src/assets/oab-logo.png` pela sua imagem.
-- Ajuste o layout da tela em `login.page.scss`.
-- Integre sua API real no `AuthService` (atualmente mock).
-- Centralização: a tela de login usa um wrapper `.center` com `min-height: 100vh` e `place-items: center` para centralizar em qualquer plataforma (web/Electron).
-
-Exemplo de integração (esboço):
-```ts
-// dentro de AuthService.login
-// const res = await this.http.post<LoginResponse>(`${environment.api}/auth/login`, { oabNumber, securityCode }).toPromise();
-// localStorage.setItem(this.tokenKey, res.token);
-```
+- Substitua a imagem `src/assets/oab-logo.png` pela logo da instituição.
+- Personalize cores no `home.page.scss` e `session-overlay.component.scss`.
+- Integre API real alterando o `AuthService` (atualmente 100% mock).
+- Caso não queira auto-start em desenvolvimento, comente a configuração `AutoLaunch` no `main.js`.
 
 ## Scripts úteis
 
 ```bash
-npm start          # alias para 'ionic serve' (adicione se preferir)
-ionic serve        # dev server com live reload
-ionic build        # build web (gera pasta www/)
-npm run desktop    # abre Electron em fullscreen (Windows)
-npm run desktop:win# gera instalador Windows
+ionic serve          # dev server web
+npm run desktop      # Electron + Ionic em modo desenvolvimento
+npm run desktop:win  # gera instalador Windows via electron-builder
 ```
 
-## Executar em Android/iOS (Capacitor)
+## Mobile (Capacitor)
 
-1) Gere o build web:
 ```bash
 ionic build
-```
-
-2) Adicione a plataforma desejada (faça uma vez):
-```bash
-npx cap add android
-npx cap add ios
-```
-
-3) Sincronize e abra o projeto nativo:
-```bash
+npx cap add android   # ou ios
 npx cap sync
-npx cap open android   # ou 'npx cap open ios' em macOS
+npx cap open android  # abre projeto nativo
 ```
 
-> Recompile (`ionic build` + `npx cap sync`) sempre que alterar o código web.
-
-## Lint/format (opcional)
-
-Se desejar padronização adicional, instale ferramentas como ESLint/Prettier e crie scripts:
-```bash
-npm run lint
-npm run format
-```
+Repita `ionic build` + `npx cap sync` após cada mudança web.
 
 ## Troubleshooting
 
-- Porta ocupada: use `ionic serve --port 8101`.
-- Cache quebrado: `rm -rf node_modules package-lock.json && npm i`.
-- Logo não aparece: confira o caminho `src/assets/oab-logo.png` e refaça o build se necessário.
+- Porta 8100 ocupada: `ionic serve --port 8101`.
+- Dependências quebradas: `rm -rf node_modules package-lock.json && npm install`.
+- Tray não aparece no modo web: apenas no Electron; em ambiente browser o botão “✕” fecha a aba.
+- Auto-start não desejado em dev: comente ou ajuste o trecho `AutoLaunch` do `main.js`.
 
 ## Licença
 
-Livre para uso educativo e como base de projetos internos.
-
-
+Livre para uso interno e fins educativos.
