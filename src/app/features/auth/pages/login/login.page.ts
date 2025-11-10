@@ -5,6 +5,8 @@ import { Router } from '@angular/router';
 import { ToastController } from '@ionic/angular';
 import { SharedModule } from '../../../../shared/shared.module';
 import { PasswordPopupService } from '../../../../shared/services/password-popup.service';
+import { NotificationService } from '../../../../shared/services/notification.service';
+import { SessionTimerService } from '../../../../shared/services/session-timer.service';
 
 @Component({
   selector: 'app-login',
@@ -18,7 +20,7 @@ export class LoginPage {
   // Formulário reativo para melhor escalabilidade e testes
   readonly form = this.fb.group({
     oabNumber: ['', [Validators.required, Validators.pattern(/^[0-9]{1,10}$/)]],
-    securityCode: ['', [Validators.required, Validators.minLength(4), Validators.maxLength(8)]],
+    securityCode: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(8)]],
   });
 
   isSubmitting = false;
@@ -28,12 +30,19 @@ export class LoginPage {
     private readonly auth: AuthService,
     private readonly router: Router,
     private readonly toastCtrl: ToastController,
-    private readonly pwdPopup: PasswordPopupService
+    private readonly pwdPopup: PasswordPopupService,
+    private readonly notify: NotificationService,
+    private readonly session: SessionTimerService
   ) {}
 
   async submit(): Promise<void> {
     if (this.form.invalid || this.isSubmitting) {
       this.form.markAllAsTouched();
+      // Feedback imediato (heurística de visibilidade do status do sistema)
+      const messages: string[] = [];
+      if (this.oabNumberCtrl.invalid) messages.push('Informe um Nº da OAB válido (apenas números).');
+      if (this.securityCodeCtrl.invalid) messages.push('Código de segurança precisa de 3 a 8 caracteres.');
+      await this.notify.info(messages.join(' '));
       return;
     }
     this.isSubmitting = true;
@@ -41,12 +50,35 @@ export class LoginPage {
     try {
       const success = await this.auth.login(oabNumber!, securityCode!);
       if (success) {
-        await this.router.navigateByUrl('/home', { replaceUrl: true });
+        // Não navega para outra tela; apenas mostra o overlay com contador
+        await this.notify.success('Sessão iniciada. Abrindo janela da sessão...');
+        try {
+          const api = (window as any).electronAPI;
+          if (api?.startSessionWindow) {
+            // Solicita ao Electron abrir a janela de sessão e fechar esta
+            api.startSessionWindow();
+          } else {
+            // Fallback para ambiente sem Electron (ou se preload falhar)
+            console.warn('[Fallback] electronAPI.startSessionWindow indisponível. Iniciando sessão local.');
+            if (!this.session.isActive) {
+              this.session.start({ userName: 'Gustavo', oabNumber: '123', totalSeconds: 30 * 60 });
+            }
+            await this.router.navigateByUrl('/home', { replaceUrl: true });
+          }
+        } catch (e) {
+          console.error('Falha ao iniciar janela de sessão:', e);
+          await this.notify.info('Iniciando sessão nesta janela por segurança.');
+          if (!this.session.isActive) {
+            this.session.start({ userName: 'Gustavo', oabNumber: '123', totalSeconds: 30 * 60 });
+          }
+          await this.router.navigateByUrl('/home', { replaceUrl: true });
+        }
       } else {
-        await this.presentToast('Credenciais inválidas. Tente novamente.');
+        // Erro específico (correspondência com o mundo real + prevenção de erro)
+        await this.notify.error('Credenciais inválidas. Dica: use OAB 123 e código 123.');
       }
     } catch (err) {
-      await this.presentToast('Erro ao autenticar. Verifique sua conexão.');
+      await this.notify.alert('Falha na autenticação', 'Não foi possível completar o login. Verifique sua conexão.');
     } finally {
       this.isSubmitting = false;
     }
@@ -57,16 +89,6 @@ export class LoginPage {
   }
   get securityCodeCtrl() {
     return this.form.controls.securityCode;
-  }
-
-  private async presentToast(message: string): Promise<void> {
-    const toast = await this.toastCtrl.create({
-      message,
-      duration: 2500,
-      color: 'danger',
-      position: 'top',
-    });
-    await toast.present();
   }
 
   exitApp(): void {

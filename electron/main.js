@@ -5,6 +5,7 @@ const path = require('path');
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
 let mainWindow;
+let sessionWindow;
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -40,16 +41,57 @@ function createMainWindow() {
 
   // Mantém o foco na janela principal para evitar o usuário acessar o sistema
   mainWindow.on('blur', () => {
-    if (!mainWindow.isDestroyed()) mainWindow.focus();
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.focus();
   });
 
   // Impede minimizar por atalho ou API
   mainWindow.on('minimize', (e) => {
-    e.preventDefault();
-    if (mainWindow.isMinimized()) {
-      mainWindow.restore();
+    try {
+      e.preventDefault();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        if (mainWindow.isMinimized()) {
+          mainWindow.restore();
+        }
+        mainWindow.focus();
+      }
+    } catch (_) {}
+  });
+}
+
+function createSessionWindow() {
+  sessionWindow = new BrowserWindow({
+    width: 460,
+    height: 320,
+    resizable: false,
+    movable: true,
+    minimizable: false,
+    maximizable: false,
+    frame: false,
+    transparent: true,
+    hasShadow: false,
+    backgroundColor: '#00000000',
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      backgroundThrottling: false,
+    },
+  });
+  const startUrl = process.env.ELECTRON_START_URL || 'http://localhost:8100';
+  // Abre a página da sessão (/home) onde o overlay ficará disponível
+  const sessionUrl = `${startUrl.replace(/\/$/, '')}/home`;
+  sessionWindow.loadURL(sessionUrl);
+
+  // Quando a janela estiver pronta, peça ao renderer para iniciar a sessão (timer e overlay)
+  sessionWindow.webContents.on('did-finish-load', () => {
+    sessionWindow.webContents.executeJavaScript('window.__START_SESSION__?.()');
+  });
+
+  // Fechar apenas esconde (segue em segundo plano)
+  sessionWindow.on('close', (e) => {
+    if (sessionWindow) {
+      e.preventDefault();
+      sessionWindow.hide();
     }
-    mainWindow.focus();
   });
 }
 
@@ -89,5 +131,28 @@ ipcMain.handle('verify-admin-password', async (_event, password) => {
 });
 
 ipcMain.on('exit-app', () => app.exit(0));
+
+// Abre janela de sessão e fecha a principal (login)
+ipcMain.on('start-session-window', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    // Remove todos os listeners para evitar handlers usando a janela após fechar
+    mainWindow.removeAllListeners();
+    mainWindow.close();
+    mainWindow = null;
+  }
+  if (!sessionWindow) createSessionWindow();
+  else sessionWindow.show();
+});
+
+// Encerrar sessão: fecha janela de sessão e volta ao login
+ipcMain.on('end-session', () => {
+  if (sessionWindow) {
+    sessionWindow.removeAllListeners('close');
+    sessionWindow.destroy();
+    sessionWindow = null;
+  }
+  if (!mainWindow) createMainWindow();
+  else mainWindow.show();
+});
 
 

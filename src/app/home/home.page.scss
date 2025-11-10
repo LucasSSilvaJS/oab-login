@@ -1,27 +1,51 @@
-#container {
+:host {
+  --ion-background-color: transparent;
+  --background: transparent;
+}
+
+.home-content {
+  --background: transparent;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fdfdff;
   text-align: center;
-
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
 }
 
-#container strong {
-  font-size: 20px;
-  line-height: 26px;
+.session-wrapper {
+  width: min(380px, 92vw);
 }
 
-#container p {
-  font-size: 16px;
-  line-height: 22px;
+.session-card {
+  -webkit-app-region: drag;
+  background: rgba(18, 48, 120, 0.92);
+  border-radius: 22px;
+  padding: 26px 24px 28px;
+  box-shadow: 0 22px 48px rgba(5, 9, 30, 0.55);
+  display: grid;
+  gap: 12px;
+}
 
-  color: #8c8c8c;
-
+.session-card h1 {
+  font-size: 22px;
   margin: 0;
+  font-weight: 600;
 }
 
-#container a {
-  text-decoration: none;
+.session-card p {
+  margin: 0;
+  font-size: 15px;
+}
+
+.session-card .oab,
+.session-card .timer {
+  font-size: 17px;
+}
+
+.session-card ion-button {
+  -webkit-app-region: no-drag;
+  margin-top: 10px;
+  --border-radius: 16px;
+  --box-shadow: 0 14px 24px rgba(0, 0, 0, 0.25);
 }

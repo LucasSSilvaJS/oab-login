@@ -1,0 +1,45 @@
+.overlay {
+  position: fixed;
+  z-index: 9999;
+  user-select: none;
+}
+
+.drag {
+  width: 46px;
+  height: 46px;
+  border-radius: 23px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: move;
+  position: absolute;
+  left: -12px;
+  top: -12px;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.25);
+}
+
+.bubble {
+  min-width: 260px;
+  max-width: 320px;
+  background: #143e80;
+  color: #fff;
+  padding: 12px 14px;
+  border-radius: 16px;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.3);
+}
+
+.title {
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+.meta {
+  font-size: 13px;
+  opacity: 0.95;
+}
+
+.hidden {
+  display: none;
+}
+
+

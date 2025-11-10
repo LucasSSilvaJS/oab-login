@@ -1,5 +1,7 @@
 import { Component } from '@angular/core';
-import { PasswordPopupService } from '../shared/services/password-popup.service';
+import { combineLatest, map } from 'rxjs';
+import { SessionTimerService } from '../shared/services/session-timer.service';
+import { AuthService } from '../features/auth/services/auth.service';
 
 @Component({
   selector: 'app-home',
@@ -8,16 +10,29 @@ import { PasswordPopupService } from '../shared/services/password-popup.service'
   standalone: false,
 })
 export class HomePage {
+  readonly vm$ = combineLatest([
+    this.session.info$,
+    this.session.remainingSeconds$,
+  ]).pipe(
+    map(([info, seconds]) => {
+      const minutes = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return {
+        active: this.session.isActive && !!info,
+        name: info?.userName ?? 'Usuário',
+        oab: info?.oabNumber ?? '---',
+        remaining: `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`,
+      };
+    })
+  );
 
-  constructor(private readonly pwdPopup: PasswordPopupService) {}
+  constructor(
+    private readonly session: SessionTimerService,
+    private readonly auth: AuthService
+  ) {}
 
-  exitApp(): void {
-    this.pwdPopup.open().then(async (password) => {
-      if (!password) return;
-      const ok: boolean = await (window as any).electronAPI?.verifyAdminPassword?.(password);
-      if (ok) {
-        (window as any).electronAPI?.exitApp?.();
-      }
-    });
+  endSession(): void {
+    this.auth.logout();
+    (window as any).electronAPI?.endSession?.();
   }
 }

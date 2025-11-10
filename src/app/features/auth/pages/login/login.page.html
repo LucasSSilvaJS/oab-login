@@ -15,7 +15,7 @@
         <ion-item lines="none" class="input-item" [class.invalid]="securityCodeCtrl.invalid && securityCodeCtrl.touched">
           <ion-label position="stacked">Código de segurança</ion-label>
           <ion-input type="password" formControlName="securityCode" placeholder="Digite o código"></ion-input>
-          <ion-note slot="error">Informe de 4 a 8 caracteres</ion-note>
+          <ion-note slot="error">Informe de 3 a 8 caracteres</ion-note>
         </ion-item>
 
         <ion-button class="access-btn" expand="block" type="submit" [disabled]="isSubmitting">

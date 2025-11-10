@@ -1,0 +1,20 @@
+<div
+  class="overlay"
+  *ngIf="(vm$ | async) as vm"
+  [class.hidden]="!vm.active || hideOnHome"
+  [style.left.px]="posX"
+  [style.top.px]="posY"
+>
+  <div class="drag" (mousedown)="beginDrag($event)" (touchstart)="beginDrag($event)">
+    <ion-icon name="remove-outline"></ion-icon>
+  </div>
+  <div class="bubble">
+    <div class="title">Sessão ativada por <b>{{ vm.name }}</b></div>
+    <div class="meta">Nº da OAB: <b>{{ vm.oab }}</b></div>
+    <div class="meta">Tempo Restante: <b>{{ vm.remaining }}</b></div>
+    <ion-button color="danger" size="small" (click)="endSession()">Encerrar</ion-button>
+    <ion-button color="medium" fill="clear" size="small" (click)="hideWindow()">Fechar (Segundo plano)</ion-button>
+  </div>
+</div>
+
+
