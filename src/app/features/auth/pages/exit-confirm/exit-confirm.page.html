@@ -1,0 +1,28 @@
+<ion-content class="ion-padding exit-content">
+  <div class="exit-card">
+    <div class="header">
+      <div class="title">
+        <ion-icon name="lock-closed-outline"></ion-icon>
+        Confirmar saída
+      </div>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="confirm()" class="body">
+      <ion-item lines="full">
+        <ion-label position="stacked">Senha de administrador</ion-label>
+        <ion-input type="password" formControlName="password" autofocus></ion-input>
+      </ion-item>
+      <ion-text color="danger" *ngIf="error">{{ error }}</ion-text>
+
+      <div class="actions">
+        <ion-button fill="clear" type="button" (click)="back()">Voltar</ion-button>
+        <ion-button color="danger" type="submit" [disabled]="isChecking">
+          <ion-icon slot="start" name="log-out-outline"></ion-icon>
+          Confirmar saída
+        </ion-button>
+      </div>
+    </form>
+  </div>
+</ion-content>
+
+

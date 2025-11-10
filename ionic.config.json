@@ -1,0 +1,7 @@
+{
+  "name": "oab-login",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular"
+}

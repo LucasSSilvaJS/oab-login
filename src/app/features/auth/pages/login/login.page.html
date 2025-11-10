@@ -1,0 +1,34 @@
+<ion-content class="login-content ion-padding">
+  <div class="center">
+    <div class="login-card">
+      <button class="card-exit" (click)="exitApp()" aria-label="Fechar">✕</button>
+    <div class="left">
+      <h1 class="title">Login</h1>
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <ion-item lines="none" class="input-item" [class.invalid]="oabNumberCtrl.invalid && oabNumberCtrl.touched">
+          <ion-label position="stacked">Nº da OAB</ion-label>
+          <ion-input inputmode="numeric" formControlName="oabNumber" placeholder="Digite o número da OAB"></ion-input>
+          <ion-note slot="helper">Apenas números</ion-note>
+          <ion-note slot="error">Informe um número válido</ion-note>
+        </ion-item>
+
+        <ion-item lines="none" class="input-item" [class.invalid]="securityCodeCtrl.invalid && securityCodeCtrl.touched">
+          <ion-label position="stacked">Código de segurança</ion-label>
+          <ion-input type="password" formControlName="securityCode" placeholder="Digite o código"></ion-input>
+          <ion-note slot="error">Informe de 4 a 8 caracteres</ion-note>
+        </ion-item>
+
+        <ion-button class="access-btn" expand="block" type="submit" [disabled]="isSubmitting">
+          Acessar
+        </ion-button>
+        <!-- Botão sair removido daqui; substituído pelo X no topo do cartão -->
+      </form>
+    </div>
+    <div class="right">
+      <img src="assets/oab-logo.png" alt="OAB" />
+    </div>
+    </div>
+  </div>
+</ion-content>
+
+
