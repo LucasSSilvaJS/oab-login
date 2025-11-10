@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
 
 // Senha de administrador (troque para valor seguro via variável de ambiente)
@@ -6,6 +6,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
 let mainWindow;
 let sessionWindow;
+let tray;
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -91,8 +92,62 @@ function createSessionWindow() {
     if (sessionWindow) {
       e.preventDefault();
       sessionWindow.hide();
+      createTray();
     }
   });
+
+  sessionWindow.on('show', () => {});
+}
+
+function createTray() {
+  if (tray) return;
+  const iconPath = path.join(__dirname, '../src/assets/oab-logo.png');
+  let trayIcon;
+  try {
+    trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 24, height: 24 });
+  } catch {
+    trayIcon = undefined;
+  }
+  tray = new Tray(trayIcon ?? iconPath);
+  tray.setToolTip('Sessão OAB - Clique para reabrir');
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Reabrir sessão',
+      click: () => {
+        if (sessionWindow) {
+          sessionWindow.show();
+          sessionWindow.focus();
+        }
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Encerrar sessão',
+      click: () => {
+        ipcMain.emit('end-session');
+      },
+    },
+    {
+      label: 'Sair do aplicativo',
+      click: () => {
+        app.exit(0);
+      },
+    },
+  ]);
+  tray.setContextMenu(contextMenu);
+  tray.on('click', () => {
+    if (sessionWindow) {
+      sessionWindow.show();
+      sessionWindow.focus();
+    }
+  });
+}
+
+function destroyTray() {
+  if (tray) {
+    tray.destroy();
+    tray = null;
+  }
 }
 
 // Pergunta ao renderer para abrir o popup e validar a senha; retorna booleano
@@ -142,6 +197,7 @@ ipcMain.on('start-session-window', () => {
   }
   if (!sessionWindow) createSessionWindow();
   else sessionWindow.show();
+  destroyTray();
 });
 
 // Encerrar sessão: fecha janela de sessão e volta ao login
@@ -151,8 +207,16 @@ ipcMain.on('end-session', () => {
     sessionWindow.destroy();
     sessionWindow = null;
   }
+  destroyTray();
   if (!mainWindow) createMainWindow();
   else mainWindow.show();
+});
+
+ipcMain.on('hide-to-tray', () => {
+  if (sessionWindow) {
+    sessionWindow.hide();
+    createTray();
+  }
 });
 
 

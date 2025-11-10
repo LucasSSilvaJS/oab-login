@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exitApp: () => ipcRenderer.send('exit-app'),
   startSessionWindow: () => ipcRenderer.send('start-session-window'),
   endSession: () => ipcRenderer.send('end-session'),
+  hideToTray: () => ipcRenderer.send('hide-to-tray'),
 });
 
 

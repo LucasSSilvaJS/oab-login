@@ -1,6 +1,9 @@
 <ion-content class="home-content" [fullscreen]="true">
   <div class="session-wrapper" *ngIf="vm$ | async as vm">
     <div class="session-card">
+      <button class="icon-close" (click)="minimizeToTray()" aria-label="Fechar">
+        ✕
+      </button>
       <h1>Bem-vindo, {{ vm.name }}!</h1>
       <p class="oab">Nº da OAB: <strong>{{ vm.oab }}</strong></p>
       <p class="timer">

@@ -31,6 +31,15 @@ export class HomePage {
     private readonly auth: AuthService
   ) {}
 
+  minimizeToTray(): void {
+    const api = (window as any).electronAPI;
+    if (api?.hideToTray) {
+      api.hideToTray();
+    } else {
+      window.close();
+    }
+  }
+
   endSession(): void {
     this.auth.logout();
     (window as any).electronAPI?.endSession?.();
