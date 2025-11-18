@@ -40,8 +40,8 @@ export class HomePage {
     }
   }
 
-  endSession(): void {
-    this.auth.logout();
+  async endSession(): Promise<void> {
+    await this.auth.logout();
     (window as any).electronAPI?.endSession?.();
   }
 }

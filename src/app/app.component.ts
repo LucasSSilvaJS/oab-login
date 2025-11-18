@@ -25,7 +25,23 @@ export class AppComponent {
     // Inicia sessão na janela dedicada quando solicitado pelo processo principal
     (window as any).__START_SESSION__ = () => {
       if (!this.session.isActive) {
-        this.session.start({ userName: 'Gustavo', oabNumber: '123', totalSeconds: 30 * 60 });
+        // Tenta recuperar informações do usuário do localStorage
+        const userInfo = this.auth.getUserInfo();
+        console.log('Informações do usuário recuperadas do localStorage:', userInfo);
+        if (userInfo) {
+          const userName = userInfo.nome || userInfo.registro_oab || 'Usuário';
+          const oabNumber = userInfo.registro_oab || '---';
+          console.log('Iniciando sessão com:', { userName, oabNumber });
+          this.session.start({
+            userName: userName,
+            oabNumber: oabNumber,
+            totalSeconds: 6 * 60, // 6 minutos para teste
+          });
+        } else {
+          console.warn('Informações do usuário não encontradas. Usando fallback.');
+          // Fallback caso não tenha informações do usuário
+          this.session.start({ userName: 'Usuário', oabNumber: '---', totalSeconds: 6 * 60 }); // 6 minutos para teste
+        }
       }
     };
   }

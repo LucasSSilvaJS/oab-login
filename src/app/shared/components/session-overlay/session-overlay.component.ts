@@ -94,8 +94,8 @@ export class SessionOverlayComponent implements OnDestroy, AfterViewInit {
     this.isDragging = false;
   }
 
-  endSession(): void {
-    this.auth.logout();
+  async endSession(): Promise<void> {
+    await this.auth.logout();
     (window as any).electronAPI?.endSession?.();
   }
 

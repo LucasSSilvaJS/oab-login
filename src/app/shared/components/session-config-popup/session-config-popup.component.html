@@ -1,0 +1,35 @@
+<div class="overlay" (mousemove)="onMouseMove($event)" (mouseup)="stopDrag()" (mouseleave)="stopDrag()">
+  <div class="popup" style="left: calc(50% - 200px); top: calc(50% - 180px);">
+    <div class="header" (mousedown)="startDrag($event)">
+      <div class="title">
+        <ion-icon name="settings-outline"></ion-icon>
+        Configuração de Sessão
+      </div>
+      <button class="close" (click)="cancel()" aria-label="Fechar">✕</button>
+    </div>
+    <div class="body">
+      <form [formGroup]="form" (ngSubmit)="confirm()">
+        <ion-item lines="full">
+          <ion-label position="stacked">ID do Computador</ion-label>
+          <ion-input type="number" formControlName="computador_id" placeholder="Digite o ID do computador" autofocus></ion-input>
+          <ion-note slot="error">ID do computador é obrigatório</ion-note>
+        </ion-item>
+
+        <ion-item lines="full">
+          <ion-label position="stacked">ID do Administrador</ion-label>
+          <ion-input type="number" formControlName="administrador_id" placeholder="Digite o ID do administrador"></ion-input>
+          <ion-note slot="error">ID do administrador é obrigatório</ion-note>
+        </ion-item>
+
+        <div class="actions">
+          <ion-button fill="clear" (click)="cancel()" type="button">Cancelar</ion-button>
+          <ion-button color="primary" type="submit">
+            <ion-icon slot="start" name="save-outline"></ion-icon>
+            Salvar
+          </ion-button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+

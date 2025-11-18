@@ -1,4 +1,9 @@
 <ion-content class="login-content ion-padding">
+  <app-loading-overlay 
+    [show]="isSubmitting" 
+    [message]="loadingMessage">
+  </app-loading-overlay>
+  
   <div class="center">
     <div class="login-card">
       <button class="card-exit" (click)="exitApp()" aria-label="Fechar">✕</button>
@@ -23,6 +28,16 @@
         </ion-button>
         <!-- Botão sair removido daqui; substituído pelo X no topo do cartão -->
       </form>
+      <div class="config-section">
+        <ion-button 
+          fill="clear" 
+          size="small" 
+          (click)="openSessionConfig()"
+          class="config-btn">
+          <ion-icon slot="start" name="settings-outline"></ion-icon>
+          Configurar Sessão
+        </ion-button>
+      </div>
     </div>
     <div class="right">
       <img src="assets/oab-logo.png" alt="OAB" />

@@ -189,6 +189,11 @@ ipcMain.handle('verify-admin-password', async (_event, password) => {
   return ok;
 });
 
+// Solicita consentimento de administrador do Windows via UAC
+ipcMain.handle('request-windows-admin-consent', async () => {
+  return await requestWindowsAdminConsent();
+});
+
 ipcMain.on('exit-app', () => app.exit(0));
 
 // Abre janela de sessão e fecha a principal (login)

@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { Router } from '@angular/router';
@@ -7,6 +7,8 @@ import { SharedModule } from '../../../../shared/shared.module';
 import { PasswordPopupService } from '../../../../shared/services/password-popup.service';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { SessionTimerService } from '../../../../shared/services/session-timer.service';
+import { SessionConfigService } from '../../../../shared/services/session-config.service';
+import { LoadingOverlayComponent } from '../../../../shared/components/loading-overlay/loading-overlay.component';
 
 @Component({
   selector: 'app-login',
@@ -14,7 +16,7 @@ import { SessionTimerService } from '../../../../shared/services/session-timer.s
   styleUrls: ['./login.page.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [SharedModule],
+  imports: [SharedModule, LoadingOverlayComponent],
 })
 export class LoginPage {
   // Formulário reativo para melhor escalabilidade e testes
@@ -24,6 +26,7 @@ export class LoginPage {
   });
 
   isSubmitting = false;
+  loadingMessage = 'Autenticando...';
 
   constructor(
     private readonly fb: FormBuilder,
@@ -32,7 +35,9 @@ export class LoginPage {
     private readonly toastCtrl: ToastController,
     private readonly pwdPopup: PasswordPopupService,
     private readonly notify: NotificationService,
-    private readonly session: SessionTimerService
+    private readonly session: SessionTimerService,
+    private readonly sessionConfig: SessionConfigService,
+    private readonly cdr: ChangeDetectorRef
   ) {}
 
   async submit(): Promise<void> {
@@ -46,41 +51,67 @@ export class LoginPage {
       return;
     }
     this.isSubmitting = true;
+    this.loadingMessage = 'Autenticando...';
+    this.cdr.markForCheck();
+    
     const { oabNumber, securityCode } = this.form.getRawValue();
     try {
-      const success = await this.auth.login(oabNumber!, securityCode!);
-      if (success) {
-        // Não navega para outra tela; apenas mostra o overlay com contador
-        await this.notify.success('Sessão iniciada. Abrindo janela da sessão...');
-        try {
-          const api = (window as any).electronAPI;
-          if (api?.startSessionWindow) {
-            // Solicita ao Electron abrir a janela de sessão e fechar esta
-            api.startSessionWindow();
-          } else {
-            // Fallback para ambiente sem Electron (ou se preload falhar)
-            console.warn('[Fallback] electronAPI.startSessionWindow indisponível. Iniciando sessão local.');
-            if (!this.session.isActive) {
-              this.session.start({ userName: 'Gustavo', oabNumber: '123', totalSeconds: 30 * 60 });
-            }
-            await this.router.navigateByUrl('/home', { replaceUrl: true });
-          }
-        } catch (e) {
-          console.error('Falha ao iniciar janela de sessão:', e);
-          await this.notify.info('Iniciando sessão nesta janela por segurança.');
-          if (!this.session.isActive) {
-            this.session.start({ userName: 'Gustavo', oabNumber: '123', totalSeconds: 30 * 60 });
-          }
+      // Simula diferentes etapas do login para feedback visual
+      this.loadingMessage = 'Verificando credenciais...';
+      this.cdr.markForCheck();
+      
+      await new Promise(resolve => setTimeout(resolve, 300)); // Pequeno delay para mostrar mensagem
+      
+      this.loadingMessage = 'Autenticando com servidor...';
+      this.cdr.markForCheck();
+      
+      // O login já faz tudo: autentica, busca informações do usuário e cria a sessão
+      await this.auth.login(oabNumber!, securityCode!);
+      
+      this.loadingMessage = 'Finalizando...';
+      this.cdr.markForCheck();
+      
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Login bem-sucedido
+      await this.notify.success('Sessão iniciada. Abrindo janela da sessão...');
+      try {
+        const api = (window as any).electronAPI;
+        if (api?.startSessionWindow) {
+          // Solicita ao Electron abrir a janela de sessão e fechar esta
+          api.startSessionWindow();
+        } else {
+          // Fallback para ambiente sem Electron (ou se preload falhar)
+          console.warn('[Fallback] electronAPI.startSessionWindow indisponível. Iniciando sessão local.');
           await this.router.navigateByUrl('/home', { replaceUrl: true });
         }
-      } else {
-        // Erro específico (correspondência com o mundo real + prevenção de erro)
-        await this.notify.error('Credenciais inválidas. Dica: use OAB 123 e código 123.');
+      } catch (e) {
+        console.error('Falha ao iniciar janela de sessão:', e);
+        await this.notify.info('Iniciando sessão nesta janela por segurança.');
+        await this.router.navigateByUrl('/home', { replaceUrl: true });
       }
-    } catch (err) {
-      await this.notify.alert('Falha na autenticação', 'Não foi possível completar o login. Verifique sua conexão.');
+    } catch (err: any) {
+      // Tratamento de erros específicos da API
+      const errorMessage = err?.message || 'Erro desconhecido';
+      
+      // Verifica se é erro de criação de sessão
+      if (errorMessage.includes('criar a sessão') || errorMessage.includes('sessão no servidor')) {
+        await this.notify.alert(
+          'Erro ao criar sessão',
+          'Não foi possível criar a sessão no servidor. Por favor, verifique sua conexão e tente novamente. Se o problema persistir, entre em contato com o suporte.'
+        );
+      } else if (errorMessage.includes('401') || errorMessage.includes('inválidos') || errorMessage.includes('UNAUTHORIZED')) {
+        await this.notify.error('Registro OAB ou código de segurança inválidos.');
+      } else if (errorMessage.includes('403') || errorMessage.includes('adimplente') || errorMessage.includes('FORBIDDEN')) {
+        await this.notify.error('Advogado não está adimplente com a OAB.');
+      } else if (errorMessage.includes('conexão') || errorMessage.includes('network') || errorMessage.includes('fetch')) {
+        await this.notify.alert('Erro de conexão', 'Não foi possível conectar ao servidor. Verifique sua conexão com a internet.');
+      } else {
+        await this.notify.alert('Falha na autenticação', errorMessage);
+      }
     } finally {
       this.isSubmitting = false;
+      this.cdr.markForCheck();
     }
   }
 
@@ -100,6 +131,27 @@ export class LoginPage {
         (window as any).electronAPI?.exitApp?.();
       }
     });
+  }
+
+  async openSessionConfig(): Promise<void> {
+    // Verifica permissão de administrador do Windows via UAC (mesmo sistema usado ao fechar)
+    const api = (window as any).electronAPI;
+    if (!api?.requestWindowsAdminConsent) {
+      await this.notify.error('Sistema de verificação de administrador não disponível.');
+      return;
+    }
+
+    const hasPermission: boolean = await api.requestWindowsAdminConsent();
+    if (!hasPermission) {
+      await this.notify.info('Acesso negado. É necessário permissão de administrador do Windows.');
+      return;
+    }
+
+    // Abre o popup de configuração de sessão
+    const config = await this.sessionConfig.open();
+    if (config) {
+      await this.notify.success('Configuração de sessão salva com sucesso!');
+    }
   }
 }
 

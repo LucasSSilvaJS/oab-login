@@ -96,6 +96,22 @@
   font-weight: 600;
 }
 
+.config-section {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+}
+
+.config-btn {
+  --color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  text-transform: none;
+  
+  &:hover {
+    --color: rgba(255, 255, 255, 1);
+  }
+}
+
 @media (max-width: 700px) {
   .login-card {
     grid-template-columns: 1fr;
