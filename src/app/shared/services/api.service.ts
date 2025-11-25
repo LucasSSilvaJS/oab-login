@@ -14,6 +14,8 @@ export interface LoginAdvogadoResponse {
   token_type: string;
   tipo_usuario: string;
   usuario_id: number;
+  cadastro_id: number;
+  nome: string;
 }
 
 export interface CadastroInfo {
@@ -114,9 +116,24 @@ export class ApiService {
     });
     console.log('📡 ApiService.criarSessao - Body:', sessao);
     
+    console.log('═══════════════════════════════════════');
+    console.log('📡 CRIANDO SESSÃO NA API');
+    console.log('═══════════════════════════════════════');
+    console.log('🌐 URL:', url);
+    console.log('📦 Payload JSON:', JSON.stringify(sessao, null, 2));
+    console.log('🔑 Token presente:', !!token);
+    console.log('═══════════════════════════════════════');
+    
     return this.http.post<SessaoResponse>(url, sessao, { headers }).pipe(
       catchError((error: HttpErrorResponse) => {
-        console.error('📡 ApiService.criarSessao - Erro capturado:', error);
+        console.error('═══════════════════════════════════════');
+        console.error('❌ ERRO AO CRIAR SESSÃO');
+        console.error('═══════════════════════════════════════');
+        console.error('❌ Status HTTP:', error.status);
+        console.error('❌ Status Text:', error.statusText);
+        console.error('❌ Error body:', JSON.stringify(error.error, null, 2));
+        console.error('❌ Error message:', error.message);
+        console.error('═══════════════════════════════════════');
         return throwError(() => this.handleError(error));
       })
     );

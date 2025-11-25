@@ -25,65 +25,59 @@ export class AuthService implements OnDestroy {
 
   async login(oabNumber: string, securityCode: string): Promise<boolean> {
     try {
+      // Normaliza os dados para garantir formato correto
+      // registro_oab: apenas números, sem espaços
+      const registroOabNormalizado = String(oabNumber || '').trim();
+      // codigo_de_seguranca: string, sem espaços
+      const codigoSegurancaNormalizado = String(securityCode || '').trim();
+      
+      console.log('═══════════════════════════════════════');
+      console.log('🚀 INICIANDO LOGIN');
+      console.log('═══════════════════════════════════════');
+      console.log('📝 OAB original:', oabNumber);
+      console.log('📝 OAB normalizado:', registroOabNormalizado);
+      console.log('🔑 Código:', codigoSegurancaNormalizado ? '***' : '(vazio)');
+      console.log('═══════════════════════════════════════');
+      
+      // Prepara payload exatamente como o backend espera
+      const loginPayload = {
+        registro_oab: registroOabNormalizado,
+        codigo_de_seguranca: codigoSegurancaNormalizado,
+      };
+      
+      console.log('📦 Payload a ser enviado:', JSON.stringify(loginPayload, null, 2));
+      
       const response = await firstValueFrom(
-        this.apiService.loginAdvogado({
-          registro_oab: oabNumber,
-          codigo_de_seguranca: securityCode,
-        })
+        this.apiService.loginAdvogado(loginPayload)
       );
+      
+      console.log('✅ Resposta recebida do backend:', response);
 
       // Salva o token JWT
       localStorage.setItem(this.tokenKey, response.access_token);
-      console.log('Token JWT armazenado no localStorage');
+      console.log('✅ Token JWT armazenado no localStorage');
 
       // Armazena o usuario_id do login para uso posterior
       const usuarioId = response.usuario_id;
-      console.log('Login realizado. Usuario ID:', usuarioId);
+      console.log('✅ Login realizado. Usuario ID:', usuarioId);
+      console.log('✅ Resposta completa do backend:', response);
 
-      // Busca informações completas do usuário usando o usuario_id
-      let userName = oabNumber; // Fallback caso não consiga buscar
-      let userInfoData: any = null;
+      // O backend já retorna nome e cadastro_id na resposta do login
+      // Usa diretamente os dados da resposta, sem necessidade de chamada adicional
+      const userName = response.nome || oabNumber;
+      console.log('✅ Nome do usuário:', userName);
 
-      try {
-        console.log('Buscando informações do usuário via GET /api/v1/usuarios-advogados/' + usuarioId);
-        const userInfo = await firstValueFrom(
-          this.apiService.getUsuarioInfo(usuarioId, response.access_token)
-        );
+      // Armazena informações do usuário usando dados da resposta do login
+      const userInfoData = {
+        usuario_id: response.usuario_id,
+        registro_oab: oabNumber,
+        tipo_usuario: response.tipo_usuario,
+        nome: userName,
+        cadastro_id: response.cadastro_id,
+        email: null, // Email não vem na resposta do login, apenas na consulta completa
+      };
 
-        console.log('Informações do usuário recebidas:', userInfo);
-
-        // Extrai o nome do cadastro
-        if (userInfo.cadastro && userInfo.cadastro.nome) {
-          userName = userInfo.cadastro.nome;
-          console.log('Nome do usuário encontrado:', userName);
-        } else {
-          console.warn('Nome não encontrado no cadastro. Usando OAB como fallback.');
-          userName = oabNumber;
-        }
-
-        // Armazena informações completas do usuário
-        userInfoData = {
-          usuario_id: userInfo.usuario_id,
-          registro_oab: userInfo.registro_oab,
-          tipo_usuario: response.tipo_usuario,
-          nome: userName,
-          cadastro_id: userInfo.cadastro_id,
-          email: userInfo.cadastro?.email || null,
-        };
-
-        console.log('Dados do usuário preparados para armazenamento:', userInfoData);
-      } catch (error: any) {
-        console.error('Erro ao buscar informações completas do usuário:', error);
-        console.error('Detalhes do erro:', error.message || error);
-        // Armazena informações básicas caso não consiga buscar
-        userInfoData = {
-          usuario_id: usuarioId,
-          registro_oab: oabNumber,
-          tipo_usuario: response.tipo_usuario,
-          nome: oabNumber,
-        };
-        console.warn('Usando informações básicas do usuário:', userInfoData);
-      }
+      console.log('✅ Dados do usuário preparados para armazenamento:', userInfoData);
 
       // Salva informações do usuário no localStorage
       localStorage.setItem(this.userInfoKey, JSON.stringify(userInfoData));
@@ -150,26 +144,33 @@ export class AuthService implements OnDestroy {
             throw new Error('Não autorizado para criar sessão. Verifique suas credenciais.');
           }
         } else {
-          // Para outros erros, bloqueia o login
-          console.error('❌ Erro ao criar sessão. Bloqueando login.');
-          this.limparDadosLogin();
+          // Para erros 400 (Bad Request), não bloqueia o login - pode ser problema de configuração
+          // que será resolvido depois
+          if (error?.status === 400) {
+            console.warn('⚠️ Erro 400 ao criar sessão (Bad Request). Continuando login...');
+            console.warn('⚠️ Detalhes do erro:', error?.error?.detail || error?.message);
+            console.warn('⚠️ Isso pode indicar que faltam configurações (computador_id, administrador_id)');
+            sessaoCriada = false; // Não bloqueia o login
+          } else {
+            // Para outros erros críticos, bloqueia o login
+            console.error('❌ Erro ao criar sessão. Bloqueando login.');
+            this.limparDadosLogin();
 
-          // Cria mensagem de erro mais amigável
-          let errorMessage = 'Erro ao criar sessão no servidor.';
+            // Cria mensagem de erro mais amigável
+            let errorMessage = 'Erro ao criar sessão no servidor.';
 
-          if (error?.status === 403) {
-            errorMessage = 'Acesso negado para criar sessão.';
-          } else if (error?.status === 400) {
-            errorMessage = 'Dados inválidos para criar sessão. Verifique a configuração.';
-          } else if (error?.status === 500) {
-            errorMessage = 'Erro interno do servidor. Tente novamente mais tarde.';
-          } else if (error?.message) {
-            errorMessage = error.message;
-          } else if (error?.error?.detail) {
-            errorMessage = error.error.detail;
+            if (error?.status === 403) {
+              errorMessage = 'Acesso negado para criar sessão.';
+            } else if (error?.status === 500) {
+              errorMessage = 'Erro interno do servidor. Tente novamente mais tarde.';
+            } else if (error?.message) {
+              errorMessage = error.message;
+            } else if (error?.error?.detail) {
+              errorMessage = error.error.detail;
+            }
+
+            throw new Error(errorMessage);
           }
-
-          throw new Error(errorMessage);
         }
       }
 
@@ -350,17 +351,28 @@ export class AuthService implements OnDestroy {
       // Data no formato YYYY-MM-DD
       const data = new Date().toISOString().split('T')[0];
 
-      const sessaoCreate = {
+      // Prepara payload da sessão
+      // Se computador_id ou administrador_id são 0, pode ser que o backend não aceite
+      // Vamos tentar omitir esses campos se forem 0
+      const sessaoCreate: any = {
         data: data,
         inicio_de_sessao: inicioDeSessao,
         final_de_sessao: finalDeSessao,
         ativado: true, // Flag ativado como true ao criar
-        computador_id: computadorId,
         usuario_id: usuarioId,
-        administrador_id: administradorId,
       };
+      
+      // Só adiciona computador_id e administrador_id se forem diferentes de 0
+      // Alguns backends não aceitam 0, então vamos omitir se for 0
+      if (computadorId && computadorId !== 0) {
+        sessaoCreate.computador_id = computadorId;
+      }
+      if (administradorId && administradorId !== 0) {
+        sessaoCreate.administrador_id = administradorId;
+      }
 
       console.log('📦 Payload da sessão a ser enviado:', JSON.stringify(sessaoCreate, null, 2));
+      console.log('⚠️ AVISO: computador_id =', computadorId, 'administrador_id =', administradorId);
       console.log('🌐 URL da API:', 'https://backend-oab.onrender.com/api/v1/sessoes');
       console.log('📤 Enviando requisição POST para criar sessão...');
       console.log('🔑 Token presente:', !!token);

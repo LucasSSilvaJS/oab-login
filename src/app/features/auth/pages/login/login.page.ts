@@ -91,22 +91,30 @@ export class LoginPage {
         await this.router.navigateByUrl('/home', { replaceUrl: true });
       }
     } catch (err: any) {
-      // Tratamento de erros específicos da API
-      const errorMessage = err?.message || 'Erro desconhecido';
+      // Tratamento de erros específicos da API baseado no status HTTP
+      const errorStatus = err?.status;
+      const errorMessage = err?.message || err?.error?.detail || 'Erro desconhecido';
       
-      // Verifica se é erro de criação de sessão
-      if (errorMessage.includes('criar a sessão') || errorMessage.includes('sessão no servidor')) {
+      console.error('❌ Erro no login:', { status: errorStatus, message: errorMessage, error: err });
+      
+      // Verifica o status HTTP retornado pelo backend
+      if (errorStatus === 401) {
+        // Credenciais inválidas (registro OAB ou código de segurança inválidos)
+        await this.notify.error('Registro OAB ou código de segurança inválidos.');
+      } else if (errorStatus === 403) {
+        // Não adimplente
+        await this.notify.error('Advogado não está adimplente com a OAB.');
+      } else if (errorMessage.includes('criar a sessão') || errorMessage.includes('sessão no servidor')) {
+        // Erro de criação de sessão
         await this.notify.alert(
           'Erro ao criar sessão',
           'Não foi possível criar a sessão no servidor. Por favor, verifique sua conexão e tente novamente. Se o problema persistir, entre em contato com o suporte.'
         );
-      } else if (errorMessage.includes('401') || errorMessage.includes('inválidos') || errorMessage.includes('UNAUTHORIZED')) {
-        await this.notify.error('Registro OAB ou código de segurança inválidos.');
-      } else if (errorMessage.includes('403') || errorMessage.includes('adimplente') || errorMessage.includes('FORBIDDEN')) {
-        await this.notify.error('Advogado não está adimplente com a OAB.');
-      } else if (errorMessage.includes('conexão') || errorMessage.includes('network') || errorMessage.includes('fetch')) {
+      } else if (errorMessage.includes('conexão') || errorMessage.includes('network') || errorMessage.includes('fetch') || !errorStatus) {
+        // Erro de conexão
         await this.notify.alert('Erro de conexão', 'Não foi possível conectar ao servidor. Verifique sua conexão com a internet.');
       } else {
+        // Outros erros
         await this.notify.alert('Falha na autenticação', errorMessage);
       }
     } finally {
