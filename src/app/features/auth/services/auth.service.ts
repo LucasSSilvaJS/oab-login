@@ -24,6 +24,9 @@ export class AuthService implements OnDestroy {
   }
 
   async login(oabNumber: string, securityCode: string): Promise<boolean> {
+    // Limpa dados anteriores antes de começar
+    this.limparDadosLogin();
+    
     try {
       // Normaliza os dados para garantir formato correto
       // registro_oab: apenas números, sem espaços
@@ -47,23 +50,78 @@ export class AuthService implements OnDestroy {
       
       console.log('📦 Payload a ser enviado:', JSON.stringify(loginPayload, null, 2));
       
+      // PASSO 1: Autentica o usuário (obtém token e dados)
+      // NÃO salva ainda - apenas obtém as informações necessárias
       const response = await firstValueFrom(
         this.apiService.loginAdvogado(loginPayload)
       );
       
       console.log('✅ Resposta recebida do backend:', response);
 
+      // Armazena temporariamente o usuario_id e token (ainda não salva no localStorage)
+      const usuarioId = response.usuario_id;
+      const accessToken = response.access_token;
+      console.log('✅ Autenticação bem-sucedida. Usuario ID:', usuarioId);
+
+      // PASSO 2: CRIA A SESSÃO ANTES DE SALVAR DADOS
+      // Se a criação da sessão falhar, impede o login completamente
+      console.log('🔄 Criando sessão na API ANTES de completar o login...');
+      try {
+        await this.criarSessaoNaAPI(accessToken, usuarioId);
+        console.log('✅ Sessão criada com sucesso! Prosseguindo com o login...');
+      } catch (sessionError: any) {
+        // Se a criação da sessão falhar, limpa tudo e impede o login
+        console.error('❌ Erro ao criar sessão. IMPEDINDO LOGIN.');
+        console.error('   Tipo do erro:', sessionError?.constructor?.name);
+        console.error('   Mensagem:', sessionError?.message);
+        console.error('   Status:', sessionError?.status);
+        console.error('   Erro completo:', sessionError);
+        
+        // Limpa qualquer dado que possa ter sido salvo antes
+        this.limparDadosLogin();
+        
+        // Cria mensagem de erro específica baseada no tipo de erro
+        let errorMessage = 'Erro ao criar sessão no servidor.';
+        let errorTitle = 'Erro na Criação da Sessão';
+        
+        if (sessionError?.status === 400) {
+          errorTitle = 'Erro na Configuração da Sessão';
+          const errorDetail = sessionError?.error?.detail || sessionError?.message || 'Dados inválidos';
+          errorMessage = `Não foi possível criar a sessão: ${errorDetail}. Verifique a configuração na seção "Configurar Sessão".`;
+        } else if (sessionError?.status === 401) {
+          errorTitle = 'Não Autorizado';
+          errorMessage = 'Não foi possível criar a sessão. Credenciais inválidas ou expiradas.';
+        } else if (sessionError?.status === 403) {
+          errorTitle = 'Acesso Negado';
+          errorMessage = 'Acesso negado para criar sessão. Verifique suas permissões.';
+        } else if (sessionError?.status === 500) {
+          errorTitle = 'Erro do Servidor';
+          errorMessage = 'Erro interno do servidor ao criar sessão. Tente novamente mais tarde.';
+        } else if (sessionError?.message) {
+          errorMessage = sessionError.message;
+        } else if (sessionError?.error?.detail) {
+          errorMessage = sessionError.error.detail;
+        }
+        
+        // Marca como erro de sessão para ser tratado corretamente no componente
+        const enhancedError: any = new Error(errorMessage);
+        enhancedError.isSessionError = true;
+        enhancedError.status = sessionError?.status;
+        enhancedError.title = errorTitle;
+        enhancedError.originalError = sessionError;
+        
+        // Lança o erro para impedir o login
+        throw enhancedError;
+      }
+
+      // PASSO 3: Se chegou aqui, a sessão foi criada com sucesso
+      // Agora pode salvar os dados do usuário e completar o login
+      
       // Salva o token JWT
-      localStorage.setItem(this.tokenKey, response.access_token);
+      localStorage.setItem(this.tokenKey, accessToken);
       console.log('✅ Token JWT armazenado no localStorage');
 
-      // Armazena o usuario_id do login para uso posterior
-      const usuarioId = response.usuario_id;
-      console.log('✅ Login realizado. Usuario ID:', usuarioId);
-      console.log('✅ Resposta completa do backend:', response);
-
       // O backend já retorna nome e cadastro_id na resposta do login
-      // Usa diretamente os dados da resposta, sem necessidade de chamada adicional
       const userName = response.nome || oabNumber;
       console.log('✅ Nome do usuário:', userName);
 
@@ -108,95 +166,7 @@ export class AuthService implements OnDestroy {
         }));
       }
 
-      // PRIMEIRO: Tenta criar sessão na API
-      // Se falhar com erro específico de "sessão não ativa" (primeiro acesso), permite continuar
-      let sessaoCriada = false;
-      try {
-        console.log('🔄 Tentando criar sessão na API...');
-        sessaoCriada = await this.criarSessaoNaAPI(response.access_token, response.usuario_id);
-
-        if (sessaoCriada) {
-          console.log('✅ Sessão criada com sucesso. Prosseguindo com o login...');
-        } else {
-          console.warn('⚠️ Sessão não foi criada (retornou false), mas continuando login...');
-        }
-      } catch (error: any) {
-        console.error('❌ Erro ao criar sessão na API:');
-        console.error('   Tipo do erro:', error?.constructor?.name);
-        console.error('   Mensagem:', error?.message);
-        console.error('   Status:', error?.status);
-        console.error('   Status Text:', error?.statusText);
-        console.error('   Erro completo:', JSON.stringify(error, null, 2));
-
-        // Verifica se é erro 401 relacionado a sessão não ativa
-        // Isso acontece no primeiro login quando o backend verifica sessão ativa antes de permitir criar
-        if (error?.status === 401) {
-          const errorDetail = error?.error?.detail || error?.message || '';
-          if (errorDetail.includes('Sessão não ativa') || errorDetail.includes('sessão não ativa') || errorDetail.includes('Autenticação negada')) {
-            console.warn('⚠️ Backend está verificando sessão ativa antes de criar. Isso é esperado no primeiro login.');
-            console.warn('⚠️ Continuando login mesmo sem criar sessão (primeiro acesso - será criada depois)');
-            // Permite o login continuar - a sessão será criada depois ou o backend pode criar automaticamente
-            sessaoCriada = false; // Não bloqueia o login
-          } else {
-            // Outro tipo de erro 401 - bloqueia o login
-            console.error('❌ Erro 401 não relacionado a sessão não ativa. Bloqueando login.');
-            this.limparDadosLogin();
-            throw new Error('Não autorizado para criar sessão. Verifique suas credenciais.');
-          }
-        } else {
-          // Para erros 400 (Bad Request), não bloqueia o login - pode ser problema de configuração
-          // que será resolvido depois
-          if (error?.status === 400) {
-            console.warn('⚠️ Erro 400 ao criar sessão (Bad Request). Continuando login...');
-            console.warn('⚠️ Detalhes do erro:', error?.error?.detail || error?.message);
-            console.warn('⚠️ Isso pode indicar que faltam configurações (computador_id, administrador_id)');
-            sessaoCriada = false; // Não bloqueia o login
-          } else {
-            // Para outros erros críticos, bloqueia o login
-            console.error('❌ Erro ao criar sessão. Bloqueando login.');
-            this.limparDadosLogin();
-
-            // Cria mensagem de erro mais amigável
-            let errorMessage = 'Erro ao criar sessão no servidor.';
-
-            if (error?.status === 403) {
-              errorMessage = 'Acesso negado para criar sessão.';
-            } else if (error?.status === 500) {
-              errorMessage = 'Erro interno do servidor. Tente novamente mais tarde.';
-            } else if (error?.message) {
-              errorMessage = error.message;
-            } else if (error?.error?.detail) {
-              errorMessage = error.error.detail;
-            }
-
-            throw new Error(errorMessage);
-          }
-        }
-      }
-
-      // Se a sessão não foi criada, tenta criar novamente após um pequeno delay
-      // Isso resolve o problema de verificação circular no backend (precisa de sessão ativa para criar sessão)
-      if (!sessaoCriada) {
-        console.warn('⚠️ Sessão não foi criada no primeiro login. Tentando novamente após delay...');
-        // Aguarda um pouco e tenta criar novamente
-        setTimeout(async () => {
-          try {
-            console.log('🔄 Tentando criar sessão novamente após delay...');
-            const retrySuccess = await this.criarSessaoNaAPI(response.access_token, response.usuario_id);
-            if (retrySuccess) {
-              console.log('✅ Sessão criada com sucesso na segunda tentativa!');
-            } else {
-              console.warn('⚠️ Sessão ainda não foi criada na segunda tentativa. Continuando mesmo assim.');
-            }
-          } catch (retryError: any) {
-            console.warn('⚠️ Erro ao tentar criar sessão novamente:', retryError?.message);
-            // Não bloqueia o login, apenas loga o aviso
-          }
-        }, 2000); // Aguarda 2 segundos antes de tentar novamente
-      }
-
-      // Se chegou aqui, pode prosseguir com o login (sessão criada ou será criada depois)
-      // Agora inicia a sessão local
+      // PASSO 4: Inicia a sessão local (timer)
       console.log('Iniciando timer da sessão com:', { userName, oabNumber });
       this.sessionTimer.start({
         userName: userName,
@@ -210,7 +180,11 @@ export class AuthService implements OnDestroy {
 
       return true;
     } catch (error: any) {
-      console.error('Erro no login:', error);
+      console.error('❌ Erro no login:', error);
+      // Se não for erro de sessão já tratado, limpa dados
+      if (!error.isSessionError) {
+        this.limparDadosLogin();
+      }
       throw error; // Propaga o erro para ser tratado no componente
     }
   }
@@ -317,28 +291,33 @@ export class AuthService implements OnDestroy {
    * @returns true se a sessão foi criada com sucesso, false caso contrário
    * @throws Error se houver erro na requisição
    */
-  private async criarSessaoNaAPI(token: string, usuarioId: number): Promise<boolean> {
+  private async criarSessaoNaAPI(token: string, usuarioId: number): Promise<void> {
+    // Variáveis para uso no tratamento de erro
+    let computadorId = 0;
+    let administradorId = 0;
+    
     try {
       console.log('🚀 Iniciando criação de sessão na API...', { usuarioId, tokenPresent: !!token });
 
       // Obtém configuração de sessão
       const sessionConfigStr = localStorage.getItem('session_config');
       if (!sessionConfigStr) {
-        console.error('❌ Configuração de sessão não encontrada. Criando configuração padrão...');
-        // Cria configuração padrão se não existir
-        const defaultConfig = {
-          usuario_id: usuarioId,
-          computador_id: 0,
-          administrador_id: 0,
-        };
-        localStorage.setItem('session_config', JSON.stringify(defaultConfig));
-        console.log('✅ Configuração padrão criada:', defaultConfig);
+        console.warn('⚠️ Configuração de sessão não encontrada. Usando valores padrão...');
+        // Usa valores padrão se não existir configuração
+        computadorId = 0;
+        administradorId = 0;
+      } else {
+        try {
+          const sessionConfig = JSON.parse(sessionConfigStr);
+          // Usa os valores da configuração ou 0 como padrão
+          computadorId = sessionConfig.computador_id ?? 0;
+          administradorId = sessionConfig.administrador_id ?? 0;
+        } catch (parseError) {
+          console.warn('⚠️ Erro ao ler configuração de sessão. Usando valores padrão...');
+          computadorId = 0;
+          administradorId = 0;
+        }
       }
-
-      const sessionConfig = JSON.parse(sessionConfigStr || '{}');
-      // Usa os valores da configuração ou 0 como padrão
-      const computadorId = sessionConfig.computador_id ?? 0;
-      const administradorId = sessionConfig.administrador_id ?? 0;
 
       console.log('📋 Configuração de sessão:', { computadorId, administradorId, usuarioId });
 
@@ -351,28 +330,19 @@ export class AuthService implements OnDestroy {
       // Data no formato YYYY-MM-DD
       const data = new Date().toISOString().split('T')[0];
 
-      // Prepara payload da sessão
-      // Se computador_id ou administrador_id são 0, pode ser que o backend não aceite
-      // Vamos tentar omitir esses campos se forem 0
+      // Prepara payload da sessão conforme especificação da API
       const sessaoCreate: any = {
         data: data,
         inicio_de_sessao: inicioDeSessao,
         final_de_sessao: finalDeSessao,
-        ativado: true, // Flag ativado como true ao criar
+        ativado: true,
+        computador_id: computadorId,
         usuario_id: usuarioId,
+        administrador_id: administradorId,
+        analista_ids: [0], // Campo obrigatório conforme especificação
       };
-      
-      // Só adiciona computador_id e administrador_id se forem diferentes de 0
-      // Alguns backends não aceitam 0, então vamos omitir se for 0
-      if (computadorId && computadorId !== 0) {
-        sessaoCreate.computador_id = computadorId;
-      }
-      if (administradorId && administradorId !== 0) {
-        sessaoCreate.administrador_id = administradorId;
-      }
 
       console.log('📦 Payload da sessão a ser enviado:', JSON.stringify(sessaoCreate, null, 2));
-      console.log('⚠️ AVISO: computador_id =', computadorId, 'administrador_id =', administradorId);
       console.log('🌐 URL da API:', 'https://backend-oab.onrender.com/api/v1/sessoes');
       console.log('📤 Enviando requisição POST para criar sessão...');
       console.log('🔑 Token presente:', !!token);
@@ -388,12 +358,50 @@ export class AuthService implements OnDestroy {
         );
         console.log('📥 Resposta da criação de sessão recebida:', sessaoResponse);
       } catch (requestError: any) {
-        // Se a requisição falhou, loga detalhes e relança
+        // Se a requisição falhou, loga detalhes e cria erro específico
         console.error('❌ Erro na requisição de criação de sessão:', requestError);
         console.error('   Status:', requestError?.status);
         console.error('   Mensagem:', requestError?.message);
         console.error('   Erro completo:', requestError);
-        throw requestError;
+        
+        // Prepara mensagem de erro específica baseada no tipo de erro
+        const errorDetail = requestError?.error?.detail || requestError?.message || '';
+        const errorDetailLower = errorDetail.toLowerCase();
+        
+        let mensagemErro = '';
+        
+        if (requestError?.status === 400) {
+          // Erro 400: Bad Request - geralmente é problema de configuração
+          if (errorDetailLower.includes('computador') || errorDetailLower.includes('computer')) {
+            mensagemErro = `ID do Computador inválido (${computadorId}). Verifique a configuração na seção "Configurar Sessão".`;
+            console.error('❌ ID do Computador inválido:', computadorId);
+          } else if (errorDetailLower.includes('administrador') || errorDetailLower.includes('admin')) {
+            mensagemErro = `ID do Administrador inválido (${administradorId}). Verifique a configuração na seção "Configurar Sessão".`;
+            console.error('❌ ID do Administrador inválido:', administradorId);
+          } else if (errorDetailLower.includes('usuario') || errorDetailLower.includes('usuário') || errorDetailLower.includes('user')) {
+            mensagemErro = `ID do Usuário inválido (${usuarioId}). Verifique as credenciais.`;
+            console.error('❌ ID do Usuário inválido:', usuarioId);
+          } else {
+            mensagemErro = `Erro ao criar sessão: ${errorDetail || 'Dados inválidos'}. Verifique a configuração na seção "Configurar Sessão".`;
+          }
+        } else if (requestError?.status === 401) {
+          mensagemErro = 'Não autorizado para criar sessão. Token inválido ou expirado.';
+        } else if (requestError?.status === 403) {
+          mensagemErro = 'Acesso negado para criar sessão. Verifique suas permissões.';
+        } else if (requestError?.status === 500) {
+          mensagemErro = 'Erro interno do servidor ao criar sessão. Tente novamente mais tarde.';
+        } else {
+          mensagemErro = errorDetail || requestError?.message || 'Erro desconhecido ao criar sessão.';
+        }
+        
+        // Cria erro aprimorado com informações detalhadas
+        const enhancedError: any = new Error(mensagemErro);
+        enhancedError.status = requestError?.status;
+        enhancedError.error = requestError?.error;
+        enhancedError.originalError = requestError;
+        
+        // Lança o erro (não retorna false)
+        throw enhancedError;
       }
 
       // Verifica se a resposta é válida
@@ -408,21 +416,22 @@ export class AuthService implements OnDestroy {
       if (sessaoId) {
         localStorage.setItem(this.sessaoIdKey, sessaoId.toString());
         console.log('✅ Sessão criada na API com sucesso! ID da sessão:', sessaoId);
-        return true; // Retorna true indicando sucesso
+        return; // Sucesso - não retorna nada (void)
       } else {
-        // Se não tem ID, mas a resposta existe, pode ser que a API retornou sucesso de outra forma
+        // Se não tem ID, mas a resposta existe, verifica se tem outros campos que indicam sucesso
         console.warn('⚠️ Resposta não contém sessao_id, mas pode ter sido criada. Resposta:', sessaoResponse);
         // Verifica se tem outros campos que indicam sucesso
         if (sessaoResponse.ativado !== undefined || sessaoResponse.data) {
           console.log('✅ Resposta indica que a sessão foi criada (campos presentes)');
-          // Tenta obter o ID de outra forma ou assume sucesso
-          return true;
+          // Se não tem sessao_id mas tem outros campos, tenta usar um ID padrão ou continua
+          console.warn('⚠️ Sessão criada mas sem sessao_id. Continuando...');
+          return; // Assume sucesso
         }
-        console.error('❌ Sessão criada mas não retornou sessao_id. Resposta completa:', JSON.stringify(sessaoResponse, null, 2));
+        console.error('❌ Sessão não retornou sessao_id nem campos de confirmação. Resposta completa:', JSON.stringify(sessaoResponse, null, 2));
         throw new Error('Resposta do servidor não contém ID da sessão criada');
       }
     } catch (error: any) {
-      console.error('❌ ERRO ao criar sessão na API:');
+      console.error('❌ ERRO ao criar sessão na API (final):');
       console.error('   Tipo do erro:', error?.constructor?.name || typeof error);
       console.error('   Mensagem:', error?.message || 'Sem mensagem');
       console.error('   Stack:', error?.stack || 'Sem stack');
@@ -442,7 +451,7 @@ export class AuthService implements OnDestroy {
         console.error('   Status Text:', error.statusText);
       }
 
-      // Propaga o erro para que o login seja cancelado
+      // Sempre lança o erro (não retorna false)
       throw error;
     }
   }

@@ -78,8 +78,103 @@
   border-bottom-color: #ffd0d0;
 }
 
+.input-item.invalid .oab-prefix-box,
+.input-item.invalid .oab-state-box {
+  border-color: #ffd0d0;
+}
+
 .input-item ion-label {
   color: #d1defa;
+}
+
+// Máscara visual do OAB
+.oab-mask-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.oab-prefix-box,
+.oab-state-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 50px;
+  height: 40px;
+  padding: 0 12px;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.oab-state-box {
+  min-width: 45px;
+}
+
+.oab-separator {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 18px;
+  font-weight: 600;
+  user-select: none;
+}
+
+.oab-input-wrapper {
+  flex: 1;
+  min-width: 120px;
+  
+  ::ng-deep {
+    ion-input {
+      --padding-start: 12px;
+      --padding-end: 12px;
+      --padding-top: 0;
+      --padding-bottom: 0;
+      height: 40px;
+      border: 2px solid rgba(255, 255, 255, 0.6);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      
+      .native-input {
+        color: #ffffff;
+        font-size: 14px;
+        
+        &::placeholder {
+          color: rgba(255, 255, 255, 0.4);
+        }
+      }
+      
+      &.ion-focused {
+        border-color: #ffffff;
+        background: rgba(255, 255, 255, 0.1);
+      }
+    }
+  }
+}
+
+.input-item.invalid .oab-input-wrapper ::ng-deep ion-input {
+  border-color: #ffd0d0;
+}
+
+// Remove padding padrão do ion-item para a máscara
+.oab-mask-item ::ng-deep {
+  .item-native {
+    padding-left: 0;
+    padding-right: 0;
+    padding-inline-start: 0;
+    padding-inline-end: 0;
+  }
+  
+  .item-inner {
+    padding-right: 0;
+    padding-inline-end: 0;
+  }
 }
 
 .access-btn {

@@ -94,28 +94,50 @@ export class LoginPage {
       // Tratamento de erros específicos da API baseado no status HTTP
       const errorStatus = err?.status;
       const errorMessage = err?.message || err?.error?.detail || 'Erro desconhecido';
+      const errorTitle = err?.title || 'Erro';
+      const errorDetail = err?.error?.detail || '';
       
-      console.error('❌ Erro no login:', { status: errorStatus, message: errorMessage, error: err });
+      console.error('❌ Erro no login:', { 
+        status: errorStatus, 
+        message: errorMessage, 
+        title: errorTitle,
+        isSessionError: err?.isSessionError,
+        error: err 
+      });
       
-      // Verifica o status HTTP retornado pelo backend
-      if (errorStatus === 401) {
+      // PRIORIDADE 1: Verifica erros específicos de criação de sessão PRIMEIRO
+      // Isso evita que erros de sessão sejam tratados como erros de conexão
+      const isSessionError = err?.isSessionError || 
+                             errorMessage.includes('criar a sessão') || 
+                             errorMessage.includes('sessão no servidor') || 
+                             errorMessage.includes('Erro ao criar sessão') || 
+                             errorMessage.includes('Erro na Configuração') ||
+                             errorMessage.includes('Configuração da Sessão') ||
+                             errorMessage.includes('Não foi possível criar') ||
+                             (errorStatus === 400 && (errorMessage.includes('computador') || errorMessage.includes('administrador') || errorMessage.includes('usuario')));
+      
+      if (isSessionError) {
+        // Erro de criação de sessão - mostra alerta com título e mensagem específicos
+        console.log('⚠️ Erro de sessão detectado. Mostrando mensagem específica.');
+        await this.notify.alert(errorTitle || 'Erro na Criação da Sessão', errorMessage);
+        return; // Retorna sem mostrar outras mensagens
+      } 
+      // PRIORIDADE 2: Verifica o status HTTP retornado pelo backend
+      else if (errorStatus === 401) {
         // Credenciais inválidas (registro OAB ou código de segurança inválidos)
         await this.notify.error('Registro OAB ou código de segurança inválidos.');
       } else if (errorStatus === 403) {
         // Não adimplente
         await this.notify.error('Advogado não está adimplente com a OAB.');
-      } else if (errorMessage.includes('criar a sessão') || errorMessage.includes('sessão no servidor')) {
-        // Erro de criação de sessão
-        await this.notify.alert(
-          'Erro ao criar sessão',
-          'Não foi possível criar a sessão no servidor. Por favor, verifique sua conexão e tente novamente. Se o problema persistir, entre em contato com o suporte.'
-        );
-      } else if (errorMessage.includes('conexão') || errorMessage.includes('network') || errorMessage.includes('fetch') || !errorStatus) {
+      } 
+      // PRIORIDADE 3: Erro de conexão (só se não for erro de sessão)
+      else if (errorMessage.includes('conexão') || errorMessage.includes('network') || 
+               errorMessage.includes('fetch') || !errorStatus || errorStatus === 0) {
         // Erro de conexão
         await this.notify.alert('Erro de conexão', 'Não foi possível conectar ao servidor. Verifique sua conexão com a internet.');
       } else {
         // Outros erros
-        await this.notify.alert('Falha na autenticação', errorMessage);
+        await this.notify.alert(errorTitle || 'Falha na autenticação', errorMessage);
       }
     } finally {
       this.isSubmitting = false;

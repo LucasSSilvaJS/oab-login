@@ -10,9 +10,17 @@
     <div class="left">
       <h1 class="title">Login</h1>
       <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-        <ion-item lines="none" class="input-item" [class.invalid]="oabNumberCtrl.invalid && oabNumberCtrl.touched">
+        <ion-item lines="none" class="input-item oab-mask-item" [class.invalid]="oabNumberCtrl.invalid && oabNumberCtrl.touched">
           <ion-label position="stacked">Nº da OAB</ion-label>
-          <ion-input inputmode="numeric" formControlName="oabNumber" placeholder="Digite o número da OAB"></ion-input>
+          <div class="oab-mask-wrapper">
+            <div class="oab-prefix-box">OAB</div>
+            <span class="oab-separator">-</span>
+            <div class="oab-state-box">PE</div>
+            <span class="oab-separator">-</span>
+            <div class="oab-input-wrapper">
+              <ion-input inputmode="numeric" formControlName="oabNumber" placeholder="10001" class="oab-number-input"></ion-input>
+            </div>
+          </div>
           <ion-note slot="helper">Apenas números</ion-note>
           <ion-note slot="error">Informe um número válido</ion-note>
         </ion-item>
