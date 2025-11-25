@@ -73,12 +73,41 @@ export class LoginPage {
       
       await new Promise(resolve => setTimeout(resolve, 200));
       
-      // Login bem-sucedido
+      // Login bem-sucedido - verifica se o token foi salvo
+      const tokenSalvo = localStorage.getItem('oab_token');
+      const userInfoSalvo = localStorage.getItem('oab_user_info');
+      console.log('🔍 Verificando dados após login:', { 
+        token: !!tokenSalvo, 
+        userInfo: !!userInfoSalvo 
+      });
+      
+      if (!tokenSalvo) {
+        console.error('❌ Token não foi salvo após login!');
+        await this.notify.error('Erro: Token não foi salvo. Tente fazer login novamente.');
+        return;
+      }
+      
       await this.notify.success('Sessão iniciada. Abrindo janela da sessão...');
+      
+      // Delay maior para garantir que o localStorage seja persistido
+      // e compartilhado com a nova janela do Electron
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Verifica novamente antes de abrir a janela
+      const tokenAindaSalvo = localStorage.getItem('oab_token');
+      console.log('🔍 Verificação final antes de abrir janela:', { token: !!tokenAindaSalvo });
+      
+      if (!tokenAindaSalvo) {
+        console.error('❌ Token foi perdido!');
+        await this.notify.error('Erro: Token não está disponível. Tente fazer login novamente.');
+        return;
+      }
+      
       try {
         const api = (window as any).electronAPI;
         if (api?.startSessionWindow) {
           // Solicita ao Electron abrir a janela de sessão e fechar esta
+          console.log('📡 Solicitando abertura da janela de sessão via Electron...');
           api.startSessionWindow();
         } else {
           // Fallback para ambiente sem Electron (ou se preload falhar)

@@ -92,28 +92,34 @@ function createSessionWindow() {
   // Carrega a aplicação de forma diferente em desenvolvimento vs produção
   if (process.env.ELECTRON_START_URL) {
     // Modo desenvolvimento com servidor HTTP explícito
-    const sessionUrl = `${process.env.ELECTRON_START_URL.replace(/\/$/, '')}/home`;
+    const sessionUrl = `${process.env.ELECTRON_START_URL.replace(/\/$/, '')}/#/home`;
     sessionWindow.loadURL(sessionUrl);
   } else if (app.isPackaged) {
     // Modo produção - carrega do arquivo local
-    // O Angular Router vai gerenciar a rota /home após o arquivo carregar
-    sessionWindow.loadFile(path.join(__dirname, '../www/index.html'));
-    // Aguarda carregar e navega para /home usando hash routing
+    const indexPath = path.join(__dirname, '../www/index.html');
+    sessionWindow.loadFile(indexPath);
+    // Aguarda carregar e navega para #/home usando hash routing
     sessionWindow.webContents.once('did-finish-load', () => {
-      sessionWindow.webContents.executeJavaScript(`
-        if (window.location.hash !== '#/home') {
-          window.location.hash = '#/home';
-        }
-      `);
+      // Força navegação para #/home após o Angular inicializar
+      setTimeout(() => {
+        sessionWindow.webContents.executeJavaScript(`
+          if (window.location.hash !== '#/home') {
+            window.location.hash = '#/home';
+          }
+        `);
+      }, 500); // Delay para garantir que o Angular Router esteja pronto
     });
   } else {
-    // Modo desenvolvimento local - usa servidor HTTP
-    sessionWindow.loadURL('http://localhost:8100/home');
+    // Modo desenvolvimento local - usa servidor HTTP com hash
+    sessionWindow.loadURL('http://localhost:8100/#/home');
   }
 
   // Quando a janela estiver pronta, peça ao renderer para iniciar a sessão (timer e overlay)
   sessionWindow.webContents.on('did-finish-load', () => {
-    sessionWindow.webContents.executeJavaScript('window.__START_SESSION__?.()');
+    // Pequeno delay para garantir que o Angular Router processou a rota
+    setTimeout(() => {
+      sessionWindow.webContents.executeJavaScript('window.__START_SESSION__?.()');
+    }, 100);
   });
 
   // Fechar apenas esconde (segue em segundo plano)
@@ -233,14 +239,33 @@ ipcMain.on('exit-app', () => app.exit(0));
 
 // Abre janela de sessão e fecha a principal (login)
 ipcMain.on('start-session-window', () => {
+  console.log('🪟 Iniciando criação da janela de sessão...');
+  
+  // Fecha a janela principal (login)
   if (mainWindow && !mainWindow.isDestroyed()) {
+    console.log('📴 Fechando janela principal (login)...');
     // Remove todos os listeners para evitar handlers usando a janela após fechar
     mainWindow.removeAllListeners();
     mainWindow.close();
     mainWindow = null;
   }
-  if (!sessionWindow) createSessionWindow();
-  else sessionWindow.show();
+  
+  // Cria a janela de sessão se não existir
+  if (!sessionWindow) {
+    console.log('🆕 Criando nova janela de sessão...');
+    createSessionWindow();
+  } else {
+    console.log('👁️ Janela de sessão já existe, apenas mostrando...');
+    // Se já existe, apenas mostra e garante que está na rota correta
+    sessionWindow.show();
+    sessionWindow.focus();
+    // Força navegação para /home se necessário
+    sessionWindow.webContents.executeJavaScript(`
+      if (window.location.hash !== '#/home') {
+        window.location.hash = '#/home';
+      }
+    `);
+  }
   destroyTray();
 });
 
