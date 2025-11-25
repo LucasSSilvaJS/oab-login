@@ -7,11 +7,18 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
+    "build:prod": "ng build --configuration production",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "lint": "ng lint",
-    "desktop": "concurrently \"ionic serve --no-open\" \"wait-on http://localhost:8100 && electron .\"",
-    "desktop:win": "electron-builder --win --x64"
+    "dev": "concurrently \"ionic serve --no-open\" \"wait-on http://localhost:8100 && electron .\"",
+    "desktop": "npm run dev",
+    "electron": "electron .",
+    "electron:build": "npm run build:prod && electron .",
+    "pack": "npm run build:prod && electron-builder --dir",
+    "pack:win": "npm run build:prod && electron-builder --win --dir",
+    "dist": "npm run build:prod && electron-builder",
+    "dist:win": "npm run build:prod && electron-builder --win --x64"
   },
   "private": true,
   "dependencies": {
@@ -74,7 +81,7 @@
       "buildResources": "electron/resources"
     },
     "files": [
-      "dist/**",
+      "www/**",
       "electron/**",
       "package.json"
     ],

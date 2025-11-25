@@ -21,7 +21,10 @@ const routes: Routes = [
 
 @NgModule({
   imports: [
-    RouterModule.forRoot(routes, { preloadingStrategy: PreloadAllModules })
+    RouterModule.forRoot(routes, { 
+      preloadingStrategy: PreloadAllModules,
+      useHash: true // Usa hash routing para funcionar com arquivos locais no Electron
+    })
   ],
   exports: [RouterModule]
 })

@@ -28,9 +28,19 @@ function createMainWindow() {
     },
   });
 
-  const startUrl =
-    process.env.ELECTRON_START_URL || 'http://localhost:8100';
-  mainWindow.loadURL(startUrl);
+  // Carrega a aplicação de forma diferente em desenvolvimento vs produção
+  if (process.env.ELECTRON_START_URL) {
+    // Modo desenvolvimento com servidor HTTP explícito
+    mainWindow.loadURL(process.env.ELECTRON_START_URL);
+  } else if (app.isPackaged) {
+    // Modo produção - carrega do arquivo local
+    // No electron-builder, os arquivos estão em resources/app/
+    // __dirname aponta para resources/app/electron, então www/ está em ../www/
+    mainWindow.loadFile(path.join(__dirname, '../www/index.html'));
+  } else {
+    // Modo desenvolvimento local - usa servidor HTTP
+    mainWindow.loadURL('http://localhost:8100');
+  }
 
   // Intercepta tentativas de fechar a janela
   mainWindow.on('close', async (e) => {
@@ -79,10 +89,27 @@ function createSessionWindow() {
       backgroundThrottling: false,
     },
   });
-  const startUrl = process.env.ELECTRON_START_URL || 'http://localhost:8100';
-  // Abre a página da sessão (/home) onde o overlay ficará disponível
-  const sessionUrl = `${startUrl.replace(/\/$/, '')}/home`;
-  sessionWindow.loadURL(sessionUrl);
+  // Carrega a aplicação de forma diferente em desenvolvimento vs produção
+  if (process.env.ELECTRON_START_URL) {
+    // Modo desenvolvimento com servidor HTTP explícito
+    const sessionUrl = `${process.env.ELECTRON_START_URL.replace(/\/$/, '')}/home`;
+    sessionWindow.loadURL(sessionUrl);
+  } else if (app.isPackaged) {
+    // Modo produção - carrega do arquivo local
+    // O Angular Router vai gerenciar a rota /home após o arquivo carregar
+    sessionWindow.loadFile(path.join(__dirname, '../www/index.html'));
+    // Aguarda carregar e navega para /home usando hash routing
+    sessionWindow.webContents.once('did-finish-load', () => {
+      sessionWindow.webContents.executeJavaScript(`
+        if (window.location.hash !== '#/home') {
+          window.location.hash = '#/home';
+        }
+      `);
+    });
+  } else {
+    // Modo desenvolvimento local - usa servidor HTTP
+    sessionWindow.loadURL('http://localhost:8100/home');
+  }
 
   // Quando a janela estiver pronta, peça ao renderer para iniciar a sessão (timer e overlay)
   sessionWindow.webContents.on('did-finish-load', () => {
@@ -103,7 +130,15 @@ function createSessionWindow() {
 
 function createTray() {
   if (tray) return;
-  const iconPath = path.join(__dirname, '../src/assets/oab-logo.png');
+  // Caminho do ícone muda entre desenvolvimento e produção
+  let iconPath;
+  if (app.isPackaged) {
+    // Em produção, os assets estão em www/assets
+    iconPath = path.join(__dirname, '../www/assets/oab-logo.png');
+  } else {
+    // Em desenvolvimento, os assets estão em src/assets
+    iconPath = path.join(__dirname, '../src/assets/oab-logo.png');
+  }
   let trayIcon;
   try {
     trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 24, height: 24 });
