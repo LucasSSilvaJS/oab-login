@@ -2,13 +2,12 @@
 
 Aplicação Ionic Angular integrada ao Electron que simula um ambiente de login da OAB com controle de tempo e monitoramento da sessão.
 
-## Credenciais mock
+## Credenciais de Login
 
-- Nº da OAB: `123`
-- Código de segurança: `123`
-- Nome exibido: `Gustavo`
+- Nº da OAB: número de registro OAB (apenas números)
+- Código de segurança: código de acesso do advogado
 
-O `AuthService` valida apenas esses dados e inicia a sessão com duração de 30 minutos.
+O sistema autentica via API e inicia a sessão com controle de tempo.
 
 ## Destaques
 
@@ -30,7 +29,9 @@ O `AuthService` valida apenas esses dados e inicia a sessão com duração de 30
 npm i -g @ionic/cli
 ```
 
-## Instalação e execução (web)
+## Instalação e execução
+
+### Desenvolvimento Web (para testes)
 
 ```bash
 cd oab-login
@@ -40,7 +41,7 @@ ionic serve
 
 Acesse `http://localhost:8100`. Use `ionic serve --no-open` caso não queira abrir o navegador automaticamente.
 
-## Modo Desktop (Electron / Windows)
+### Aplicação Desktop Windows
 
 ```bash
 # definir senha que será solicitada ao sair (opcional, mas recomendado)
@@ -94,7 +95,6 @@ Arquivos-chave:
 
 - Substitua a imagem `src/assets/oab-logo.png` pela logo da instituição.
 - Personalize cores no `home.page.scss` e `session-overlay.component.scss`.
-- Integre API real alterando o `AuthService` (atualmente 100% mock).
 - Caso não queira auto-start em desenvolvimento, comente a configuração `AutoLaunch` no `main.js`.
 
 ## Scripts úteis
@@ -105,16 +105,6 @@ npm run desktop      # Electron + Ionic em modo desenvolvimento
 npm run desktop:win  # gera instalador Windows via electron-builder
 ```
 
-## Mobile (Capacitor)
-
-```bash
-ionic build
-npx cap add android   # ou ios
-npx cap sync
-npx cap open android  # abre projeto nativo
-```
-
-Repita `ionic build` + `npx cap sync` após cada mudança web.
 
 ## Troubleshooting
 
