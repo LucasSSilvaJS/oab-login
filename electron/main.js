@@ -111,7 +111,7 @@ function createTray() {
     trayIcon = undefined;
   }
   tray = new Tray(trayIcon ?? iconPath);
-  tray.setToolTip('Sessão OAB - Clique para reabrir');
+  tray.setToolTip('Gerenciamento OAB - Clique para reabrir');
   const contextMenu = Menu.buildFromTemplate([
     {
       label: 'Encerrar sessão',
@@ -148,7 +148,7 @@ function requestWindowsAdminConsent() {
   return new Promise((resolve) => {
     // Executa um comando inofensivo apenas para acionar o UAC nativo do Windows,
     // sem abrir janela de console.
-    const options = { name: 'OAB Login' };
+    const options = { name: 'Gerenciamento OAB' };
     const command = 'powershell -NoProfile -WindowStyle Hidden -Command exit 0';
     sudo.exec(command, options, (error) => {
       resolve(!error);
@@ -159,7 +159,7 @@ function requestWindowsAdminConsent() {
 app.whenReady().then(async () => {
   if (app.isPackaged) {
     autoLauncher = new AutoLaunch({
-      name: 'OAB Login',
+      name: 'Gerenciamento OAB',
       path: process.execPath,
     });
     try {

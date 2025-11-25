@@ -69,7 +69,7 @@
   "main": "electron/main.js",
   "build": {
     "appId": "com.example.oablogin",
-    "productName": "OAB Login",
+    "productName": "Gerenciamento OAB",
     "directories": {
       "buildResources": "electron/resources"
     },
@@ -81,7 +81,8 @@
     "win": {
       "target": "nsis",
       "publisherName": "OAB",
-      "artifactName": "OAB-Login-Setup-${version}.exe"
+      "icon": "electron/resources/icon.png",
+      "artifactName": "Gerenciamento-OAB-Setup-${version}.exe"
     }
   }
 }
