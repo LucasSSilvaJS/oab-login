@@ -505,17 +505,29 @@ export class AuthService implements OnDestroy {
             console.log('Redirecionamento concluído com sucesso');
           } else {
             console.warn('Navegação não foi bem-sucedida, tentando fallback...');
-            // Fallback: tenta usar window.location se o router falhar
+            // Fallback: usa hash routing corretamente (useHash: true)
             if (typeof window !== 'undefined') {
-              window.location.href = '/auth/login';
+              window.location.hash = '#/auth/login';
+              // Força reload se necessário
+              setTimeout(() => {
+                if (window.location.hash !== '#/auth/login') {
+                  window.location.reload();
+                }
+              }, 100);
             }
           }
         },
         (error) => {
           console.error('Erro ao navegar para login:', error);
-          // Fallback: tenta usar window.location se o router falhar
+          // Fallback: usa hash routing corretamente (useHash: true)
           if (typeof window !== 'undefined') {
-            window.location.href = '/auth/login';
+            window.location.hash = '#/auth/login';
+            // Força reload se necessário
+            setTimeout(() => {
+              if (window.location.hash !== '#/auth/login') {
+                window.location.reload();
+              }
+            }, 100);
           }
         }
       );
