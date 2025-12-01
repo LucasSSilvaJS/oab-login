@@ -1,117 +1,326 @@
-# OAB Login - Ionic + Electron
+# Gerenciamento OAB - Ionic + Electron
 
-Aplicação Ionic Angular integrada ao Electron que simula um ambiente de login da OAB com controle de tempo e monitoramento da sessão.
+Aplicação Ionic Angular integrada ao Electron para gerenciamento de sessões da OAB com controle de tempo e monitoramento em tempo real.
+
+## Sobre o Projeto
+
+Sistema de autenticação e gerenciamento de sessões para advogados da OAB, desenvolvido com:
+- **Frontend**: Ionic 8 + Angular 20
+- **Desktop**: Electron 33
+- **Backend**: API REST em `https://backend-oab.onrender.com`
 
 ## Credenciais de Login
 
-- Nº da OAB: número de registro OAB (apenas números)
-- Código de segurança: código de acesso do advogado
+- **Nº da OAB**: número de registro OAB (apenas números)
+- **Código de segurança**: código de acesso do advogado
 
-O sistema autentica via API e inicia a sessão com controle de tempo.
+O sistema autentica via API REST e gerencia sessões com controle de tempo automático.
 
-## Destaques
+## Funcionalidades Principais
 
-- Tela de login responsiva com formulário reativo e feedbacks instantâneos.
-- Overlay flutuante arrastável com número da OAB, nome e contador regressivo.
-- Janela dedicada (frameless) para a sessão: mostra somente cartão com bem-vindo, número OAB, tempo e botões.
-- Contador encerra sessão automaticamente e retorna ao login ao zerar.
-- Botão “✕” envia a janela para a bandeja; ícone da bandeja permite reabrir ou encerrar.
-- Autostart configurado via `electron-auto-launch`: após instalar, o app inicia junto com o Windows.
-- Proteção de saída com senha (usando `sudo-prompt`) antes de fechar o aplicativo em modo quiosque.
+### Autenticação e Sessão
+- Tela de login responsiva com formulário reativo e validações
+- Autenticação via API REST (`/api/v1/auth/login/advogado`)
+- Criação automática de sessão na API ao fazer login
+- Gerenciamento de token JWT e informações do usuário
+
+### Interface de Sessão
+- Janela dedicada (frameless) para a sessão ativa
+- Exibição de nome do advogado, número OAB e timer regressivo
+- Contador regressivo com notificações aos 5, 3 e 1 minutos restantes
+- Encerramento automático da sessão quando o timer chega a zero
+- Botão "Encerrar sessão" para logout manual
+
+### Sistema Tray (Bandeja)
+- Botão "✕" minimiza a janela para a bandeja do sistema sem encerrar a sessão
+- Menu do tray permite:
+  - Reabrir a janela de sessão
+  - Encerrar sessão
+  - Encerrar aplicativo
+
+### Modo Quiosque
+- Janela principal em modo fullscreen/kiosk
+- Proteção de saída com senha de administrador (UAC)
+- Auto-start configurado via `electron-auto-launch`
+- Impede minimizar, redimensionar ou perder foco
+
+### Monitoramento
+- Interceptor HTTP para detectar sessões inativas no backend
+- Logout automático quando o backend encerra a sessão
+- Sincronização de estado entre frontend e backend
 
 ## Pré-requisitos
 
-- Node.js (versão LTS)
-- npm
-- Ionic CLI (opcional para comandos utilitários)
+- **Node.js**: versão LTS (recomendado 18.x ou superior)
+- **npm**: incluído com Node.js
+- **Ionic CLI**: opcional para comandos utilitários
 
 ```bash
 npm i -g @ionic/cli
 ```
 
-## Instalação e execução
+## Instalação
+
+```bash
+# Clone ou baixe o repositório
+cd oab-login
+
+# Instale as dependências
+npm install
+```
+
+## Execução
 
 ### Desenvolvimento Web (para testes)
 
 ```bash
-cd oab-login
-npm install
+npm start
+# ou
 ionic serve
 ```
 
 Acesse `http://localhost:8100`. Use `ionic serve --no-open` caso não queira abrir o navegador automaticamente.
 
-### Aplicação Desktop Windows
+### Aplicação Desktop (Windows)
 
 ```bash
-# definir senha que será solicitada ao sair (opcional, mas recomendado)
+# Opcional: definir senha de administrador para proteção de saída
 setx ADMIN_PASSWORD "sua-senha-forte"
 
+# Executar em modo desenvolvimento
 npm run desktop
+# ou
+npm run dev
 ```
 
-- Abre o Electron em modo quiosque com tela de login.
-- Após entrar (OAB 123 / código 123) a janela principal é fechada e uma janela de sessão (sem moldura) é aberta.
-- O botão “Encerrar sessão” faz logout imediato. O botão “✕” move a janela para a bandeja sem encerrar o timer.
-- Na bandeja, o menu permite reabrir a janela, encerrar a sessão ou encerrar o aplicativo.
-- O auto-start é habilitado na primeira execução (`electron-auto-launch`). Ajuste em `electron/main.js` caso deseje desligar.
-- Para gerar instalador Windows:
+**Comportamento:**
+- Abre o Electron em modo quiosque com tela de login
+- Após autenticação bem-sucedida, a janela principal é escondida e uma janela de sessão (frameless) é criada
+- O botão "Encerrar sessão" faz logout imediato e retorna à tela de login
+- O botão "✕" move a janela para a bandeja sem encerrar o timer
+- O auto-start é habilitado na primeira execução (`electron-auto-launch`)
+
+### Build de Produção
 
 ```bash
-npm run build
-npm run desktop:win
+# Build do Angular para produção
+npm run build:prod
+
+# Gerar instalador Windows
+npm run dist:win
 ```
 
-O instalador segue as definições de `electron-builder` em `package.json`.
+O instalador será gerado em `dist/` com o nome `Gerenciamento-OAB-Setup-0.0.1.exe`, seguindo as configurações do `electron-builder` em `package.json`.
 
-## Estrutura do projeto
+## Estrutura do Projeto
 
 ```
-src/
-  app/
-    core/                 # Módulos e serviços globais
-    shared/               # Módulo compartilhado + componentes (overlay, serviços)
-    features/
-      auth/
-        pages/login/      # Tela de login e feedbacks
-        services/         # AuthService mock + SessionTimerService
-        guards/           # AuthGuard (protege /home)
-    home/                 # Página de sessão (cartão com timer e botões)
-  assets/
-    oab-logo.png
-electron/
-  main.js                 # Lógica do processo principal (janelas, tray, auto-start)
-  preload.js              # Ponte IPC (start/end/hide sessão)
+oab-login/
+├── src/
+│   ├── app/
+│   │   ├── core/                    # Módulo core com serviços globais
+│   │   ├── features/
+│   │   │   └── auth/
+│   │   │       ├── pages/
+│   │   │       │   ├── login/       # Tela de login
+│   │   │       │   └── exit-confirm/# Tela de confirmação de saída
+│   │   │       ├── services/
+│   │   │       │   └── auth.service.ts  # Serviço de autenticação
+│   │   │       └── guards/
+│   │   │           └── auth.guard.ts    # Guard para proteger rotas
+│   │   ├── home/                     # Módulo Home (página de sessão)
+│   │   │   └── home.page.*           # Página com timer e controles
+│   │   ├── shared/
+│   │   │   ├── components/
+│   │   │   │   ├── session-overlay/     # Overlay flutuante (se aplicável)
+│   │   │   │   ├── loading-overlay/     # Overlay de carregamento
+│   │   │   │   ├── admin-password-popup/# Popup de senha admin
+│   │   │   │   └── session-config-popup/# Popup de configuração
+│   │   │   ├── services/
+│   │   │   │   ├── api.service.ts           # Serviço de comunicação com API
+│   │   │   │   ├── session-timer.service.ts  # Controle do timer regressivo
+│   │   │   │   ├── session-monitor.service.ts# Monitoramento de sessão
+│   │   │   │   ├── notification.service.ts  # Notificações do sistema
+│   │   │   │   └── exit-flow.service.ts     # Fluxo de saída
+│   │   │   └── interceptors/
+│   │   │       └── auth.interceptor.ts      # Interceptor HTTP para autenticação
+│   │   └── app-routing.module.ts     # Rotas principais (hash routing)
+│   ├── assets/
+│   │   └── oab-logo.png              # Logo da OAB
+│   └── environments/
+│       ├── environment.ts            # Configurações de desenvolvimento
+│       └── environment.prod.ts      # Configurações de produção
+├── electron/
+│   ├── main.js                       # Processo principal Electron
+│   ├── preload.js                    # Script de preload (ponte IPC)
+│   ├── password.html                 # HTML para popup de senha
+│   └── resources/
+│       └── icon.png                  # Ícone do aplicativo
+├── package.json
+├── angular.json
+├── ionic.config.json
+├── FLUXO_TELAS.md                    # Documentação do fluxo de telas
+└── CORRECOES_BUILD.md                # Documentação sobre correções de build
 ```
 
-Arquivos-chave:
-- `src/app/app-routing.module.ts`: rotas raiz (`/auth` e `/home` protegida).
-- `src/app/features/auth/services/auth.service.ts`: login mock, inicialização do timer.
-- `src/app/shared/services/session-timer.service.ts`: controle do countdown.
-- `src/app/home/home.page.*`: cartão minimalista com timer e ação de bandeja.
-- `electron/main.js`: janelas Electron, tray, auto-launch e IPC.
+## Arquivos-Chave
 
-## Variáveis/Ajustes recomendados
+### Rotas e Navegação
+- `src/app/app-routing.module.ts`: Rotas principais usando hash routing (`#/auth`, `#/home`)
+- `src/app/features/auth/auth-routing.module.ts`: Rotas do módulo de autenticação
+- `src/app/home/home-routing.module.ts`: Rotas do módulo home
 
-- Substitua a imagem `src/assets/oab-logo.png` pela logo da instituição.
-- Personalize cores no `home.page.scss` e `session-overlay.component.scss`.
-- Caso não queira auto-start em desenvolvimento, comente a configuração `AutoLaunch` no `main.js`.
+### Serviços
+- `src/app/features/auth/services/auth.service.ts`: Autenticação e gerenciamento de sessão
+- `src/app/shared/services/api.service.ts`: Comunicação com a API REST
+- `src/app/shared/services/session-timer.service.ts`: Controle do timer regressivo
+- `src/app/shared/services/session-monitor.service.ts`: Monitoramento de estado da sessão
 
-## Scripts úteis
+### Electron
+- `electron/main.js`: Lógica do processo principal (janelas, tray, auto-start, IPC)
+- `electron/preload.js`: Ponte de comunicação IPC entre renderer e main process
+
+### Componentes
+- `src/app/home/home.page.*`: Página principal da sessão com timer e botões
+- `src/app/features/auth/pages/login/login.page.*`: Tela de login
+
+## Configuração da API
+
+A URL da API é configurada em `src/environments/environment.ts`:
+
+```typescript
+export const environment = {
+  production: false,
+  apiUrl: 'https://backend-oab.onrender.com'
+};
+```
+
+**Endpoints utilizados:**
+- `POST /api/v1/auth/login/advogado` - Autenticação
+- `GET /api/v1/usuarios-advogados/:id` - Informações do usuário
+- `POST /api/v1/sessoes` - Criar sessão
+- `PUT /api/v1/sessoes/:id` - Atualizar sessão
+- `POST /api/v1/sessoes/:id/finalizar` - Finalizar sessão
+
+## Scripts Disponíveis
 
 ```bash
-ionic serve          # dev server web
-npm run desktop      # Electron + Ionic em modo desenvolvimento
-npm run desktop:win  # gera instalador Windows via electron-builder
+# Desenvolvimento
+npm start              # Servidor web Angular (localhost:8100)
+npm run dev            # Electron + Ionic em modo desenvolvimento
+npm run desktop        # Alias para npm run dev
+
+# Build
+npm run build          # Build de desenvolvimento
+npm run build:prod     # Build de produção
+
+# Electron
+npm run electron       # Executar Electron (requer build prévio)
+npm run electron:build # Build + Electron
+
+# Distribuição
+npm run pack           # Build + empacotar (sem instalador)
+npm run pack:win       # Build + empacotar Windows (sem instalador)
+npm run dist           # Build + gerar instalador (todas as plataformas)
+npm run dist:win       # Build + gerar instalador Windows (.exe)
+
+# Testes e Qualidade
+npm test               # Executar testes unitários
+npm run lint           # Verificar código com ESLint
 ```
 
+## Variáveis de Ambiente
+
+### ADMIN_PASSWORD
+Senha de administrador para proteção de saída do modo quiosque.
+
+```bash
+# Windows (PowerShell)
+setx ADMIN_PASSWORD "sua-senha-forte"
+
+# Windows (CMD)
+setx ADMIN_PASSWORD "sua-senha-forte"
+```
+
+**Nota**: A senha padrão em desenvolvimento é `admin123` (definida em `electron/main.js`).
+
+## Personalização
+
+### Logo
+Substitua `src/assets/oab-logo.png` pela logo da instituição.
+
+### Cores e Estilos
+Personalize os estilos em:
+- `src/app/home/home.page.scss`
+- `src/app/features/auth/pages/login/login.page.scss`
+- `src/app/shared/components/session-overlay/session-overlay.component.scss`
+
+### Auto-start
+Para desabilitar o auto-start em desenvolvimento, comente ou ajuste a configuração `AutoLaunch` em `electron/main.js`.
+
+### Nome do Produto
+O nome do produto pode ser alterado em `package.json`:
+```json
+{
+  "build": {
+    "productName": "Gerenciamento OAB"
+  }
+}
+```
+
+## Documentação Adicional
+
+- **FLUXO_TELAS.md**: Documentação detalhada do fluxo de navegação e telas
+- **CORRECOES_BUILD.md**: Documentação sobre correções implementadas para build de produção
 
 ## Troubleshooting
 
-- Porta 8100 ocupada: `ionic serve --port 8101`.
-- Dependências quebradas: `rm -rf node_modules package-lock.json && npm install`.
-- Tray não aparece no modo web: apenas no Electron; em ambiente browser o botão “✕” fecha a aba.
-- Auto-start não desejado em dev: comente ou ajuste o trecho `AutoLaunch` do `main.js`.
+### Porta 8100 ocupada
+```bash
+ionic serve --port 8101
+```
+
+### Dependências quebradas
+```bash
+# Windows
+rmdir /s /q node_modules
+del package-lock.json
+npm install
+
+# Linux/Mac
+rm -rf node_modules package-lock.json
+npm install
+```
+
+### Tray não aparece
+O sistema tray funciona apenas no Electron. Em ambiente browser, o botão "✕" fecha a aba normalmente.
+
+### Auto-start não desejado em desenvolvimento
+Comente ou ajuste o trecho `AutoLaunch` do `electron/main.js`:
+```javascript
+// autoLauncher.enable();
+```
+
+### Flash da tela de login na build de produção
+Este problema foi corrigido (ver `CORRECOES_BUILD.md`). Se ainda ocorrer, verifique se:
+1. O hash `#/home` está sendo definido antes do Angular inicializar
+2. A janela de sessão está sendo criada com `show: false` inicialmente
+
+### Erro de conexão com API
+Verifique:
+1. A URL da API em `src/environments/environment.ts`
+2. Se o backend está acessível
+3. Se há problemas de CORS (o backend deve permitir requisições do frontend)
+
+## Tecnologias Utilizadas
+
+- **Ionic 8**: Framework UI para aplicações mobile/desktop
+- **Angular 20**: Framework web
+- **Electron 33**: Framework para aplicações desktop
+- **RxJS 7.8**: Programação reativa
+- **TypeScript 5.8**: Linguagem de programação
+- **electron-builder 25**: Empacotamento e distribuição
+- **electron-auto-launch 5**: Auto-start no Windows
 
 ## Licença
 
