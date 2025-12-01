@@ -2,6 +2,14 @@
 
 Aplicação Ionic Angular integrada ao Electron para gerenciamento de sessões da OAB com controle de tempo e monitoramento em tempo real.
 
+## Para acessar o sistema, use as credenciais:
+- **Nº da OAB**: 10021
+- **Código de segurança**: 123
+- **Id do administrador**: 1
+- **Id do computador**: 600
+
+[LINK PARA FAZER O DOWNLOAD DO INSTALADOR](https://drive.google.com/file/d/1L0Y7GEAQVe9q_mDudeLTTCQLnLaYF7ID/view?usp=sharing)
+
 ## Sobre o Projeto
 
 Sistema de autenticação e gerenciamento de sessões para advogados da OAB, desenvolvido com:
