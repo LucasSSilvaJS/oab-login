@@ -45,7 +45,7 @@ export class AppComponent {
         this.session.start({
           userName: userName,
           oabNumber: oabNumber,
-          totalSeconds: 6 * 60, // 6 minutos para teste - TODO: obter da API ou configuração
+          totalSeconds: 30 * 60, // 30 minutos
         });
       } else {
         console.warn('Informações do usuário não encontradas. Timer não será iniciado.');

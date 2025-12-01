@@ -171,7 +171,7 @@ export class AuthService implements OnDestroy {
       this.sessionTimer.start({
         userName: userName,
         oabNumber: oabNumber,
-        totalSeconds: 6 * 60, // 6 minutos para teste
+        totalSeconds: 30 * 60, // 30 minutos
       });
       console.log('Timer da sessão iniciado com sucesso');
 
@@ -324,8 +324,8 @@ export class AuthService implements OnDestroy {
       // Calcula data/hora de início (TEMPO ATUAL)
       const inicioDeSessao = new Date().toISOString();
 
-      // Calcula data/hora de fim (6 minutos depois para teste)
-      const finalDeSessao = new Date(Date.now() + 6 * 60 * 1000).toISOString();
+      // Calcula data/hora de fim (30 minutos depois)
+      const finalDeSessao = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
       // Data no formato YYYY-MM-DD
       const data = new Date().toISOString().split('T')[0];
